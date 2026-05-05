@@ -1,18 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:metro_ui/animated_widgets.dart';
 import 'package:metro_ui/animations.dart';
-import 'package:metro_ui/widgets/button.dart';
-import 'package:metro_ui/metro_page_push.dart';
-import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
-import 'package:metro_ui/widgets/tile.dart';
-import 'package:metro_ui/widgets/context_menu.dart';
+import 'package:windows_phone_simulator/splashscreen_page.dart';
 
 class LauncherPage extends StatefulWidget {
   const LauncherPage({super.key, required this.title});
-
 
   final String title;
 
@@ -20,324 +15,45 @@ class LauncherPage extends StatefulWidget {
   State<LauncherPage> createState() => _LauncherPageState();
 }
 
-class _LauncherPageState extends State<LauncherPage> with TickerProviderStateMixin {
+class _LauncherPageState extends State<LauncherPage>
+    with TickerProviderStateMixin {
   final List<GlobalKey> _keys = [];
 
   late List<AnimationController> _controllers;
   late List<Animation<double>> _animations;
   late List<bool> _tileVisibility; // 控制每个 tile 的可见性
 
+  bool _isEditMode = false; // 是否处于编辑模式
+
   final int pushTime = 350; //非被点击的Tile总飞出时间
   final int singleTileTime = 150; //单个Tile飞出时间
 
-  int _testIndex = 0;
+  late List<TileModel> _pinnedTiles;
 
   List<App> get apps => [
         App(
-            name: 'Panorama',
-            tile: LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: const Text('Panorama'),
-              children: [
-                MetroAppTile(
-                  icon: const Icon(
-                    Icons.map,
-                    size: 70,
-                  ),
-                  count: _testIndex,
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Panorama Hub页面，具有浓郁的WP特色',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-          name: 'NormalPage',
-          tile: const LiveTile(
-            size: LiveTileSize.medium,
-            flipStyle: FlipStyle.elastic,
-            name: Text('Normal Page'),
+          id: 'com.ms.weather',
+          name: '天气',
+          themeColor: Colors.blue,
+          icon: const Icon(Icons.wb_sunny),
+          page: const Splashscreen(), // 你的天气页面组件
+          smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
+          mediumTile: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              MetroAppTile(
-                icon: Icon(
-                  Icons.file_copy,
-                  size: 70,
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(10),
-                child: Text(
-                  '普通带有标题副标题的页面',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
+              Icon(Icons.wb_sunny, color: Colors.white, size: 36),
+              Text('24°C', style: TextStyle(color: Colors.white, fontSize: 18)),
             ],
           ),
-          page: const LauncherPage(
-            title: 'Panorama',
-          ),
-        ),
-        App(
-            name: 'Switcher',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Switcher'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.toggle_on,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    '开关组件演示',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'Splash Screen',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Splash Screen'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.star,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    '开屏页面再走一次',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'SpinnerDemoPage',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Spinner'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.refresh,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Metro风格的加载动画',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'SafeArea Tester',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('SafeArea Tester'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.fullscreen,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'SafeArea适配测试',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'Panorama',
-            tile: LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: const Text('Panorama'),
-              children: [
-                MetroAppTile(
-                  icon: const Icon(
-                    Icons.map,
-                    size: 70,
-                  ),
-                  count: _testIndex,
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Panorama Hub页面，具有浓郁的WP特色',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-          name: 'NormalPage',
-          tile: const LiveTile(
-            size: LiveTileSize.medium,
-            flipStyle: FlipStyle.elastic,
-            name: Text('Normal Page'),
+          wideTile: const Row(
+            // 宽磁贴可以放更多信息
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              MetroAppTile(
-                icon: Icon(
-                  Icons.file_copy,
-                  size: 70,
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(10),
-                child: Text(
-                  '普通带有标题副标题的页面',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
+              Icon(Icons.wb_sunny, color: Colors.white, size: 40),
+              Text('新北市板桥区\n晴天 24°C', style: TextStyle(color: Colors.white)),
             ],
           ),
-          page: const LauncherPage(
-            title: 'Panorama',
-          ),
         ),
-        App(
-            name: 'Switcher',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Switcher'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.toggle_on,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    '开关组件演示',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'Splash Screen',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Splash Screen'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.star,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    '开屏页面再走一次',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'SpinnerDemoPage',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Spinner'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.refresh,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Metro风格的加载动画',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-        App(
-            name: 'SafeArea Tester',
-            tile: const LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('SafeArea Tester'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.fullscreen,
-                    size: 70,
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'SafeArea适配测试',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-              ],
-            ),
-            page: const LauncherPage(
-              title: 'Panorama',
-            )),
-      
       ];
 
   @override
@@ -365,6 +81,16 @@ class _LauncherPageState extends State<LauncherPage> with TickerProviderStateMix
         curve: Curves.linear,
       ));
     }).toList();
+
+    _pinnedTiles = [
+      TileModel(
+        instanceId: 'weather_1',
+        app: apps[0],
+        currentSize: TileSize.medium,
+        gridX: 0,
+        gridY: 0,
+      ),
+    ];
   }
 
   /// 判断组件是否在屏幕可见范围内
@@ -645,25 +371,61 @@ class _LauncherPageState extends State<LauncherPage> with TickerProviderStateMix
           final screenWidth = constraints.maxWidth;
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            physics: LauncherSnapPhysics(
-              snapOffsets: [0, screenWidth - 60],
-              parent: const ClampingScrollPhysics(), // 禁用边界回弹
-            ),
+            physics: _isEditMode 
+                ? const NeverScrollableScrollPhysics() 
+                : LauncherSnapPhysics(
+                    snapOffsets: [0, screenWidth - 60],
+                    parent: const ClampingScrollPhysics(), // 禁用边界回弹
+                  ),
             child: Row(
               children: [
                 SizedBox(
                   width: screenWidth - 60,
-                  child: WP7StyleStartMenu(
-                    apps: apps,
-                    animations: _animations,
-                    tileVisibility: _tileVisibility,
-                    keysList: _keys,
+                  child: StartMenu(
+                    initialTiles: _pinnedTiles,
+                    onEditModeChanged: (isEdit) {
+                      setState(() {
+                        _isEditMode = isEdit;
+                      });
+                    },
                   ),
                 ),
                 SizedBox(
                   width: screenWidth,
                   child: Container(
-                    color: Colors.red,
+                    color: Colors.black,
+                    padding: const EdgeInsets.only(top: 40, left: 20),
+                    child: ListView.builder(
+                      itemCount: apps.length,
+                      itemBuilder: (context, index) {
+                        final app = apps[index];
+                        return GestureDetector(
+                          onLongPress: () {
+                            setState(() {
+                              _pinnedTiles.add(TileModel(
+                                instanceId: '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
+                                app: app,
+                                currentSize: TileSize.medium,
+                                gridX: 0, // In reality, we should find an empty spot
+                                gridY: _pinnedTiles.lastOrNull != null ? _pinnedTiles.last.gridY + 2 : 0,
+                              ));
+                            });
+                          },
+                          child: ListTile(
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              color: app.themeColor,
+                              child: app.icon,
+                            ),
+                            title: Text(
+                              app.name,
+                              style: const TextStyle(color: Colors.white, fontSize: 24),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -741,111 +503,629 @@ class LauncherSnapPhysics extends ScrollPhysics {
   }
 }
 
-
-
-
-class WP7StyleStartMenu extends StatefulWidget {
-  final List<App> apps;
-  final List<Animation<double>> animations;
-  final List<bool> tileVisibility;
-  final List<GlobalKey> keysList;
-
-  const WP7StyleStartMenu({
-    super.key,
-    required this.apps,
-    required this.animations,
-    required this.tileVisibility,
-    required this.keysList,
-  });
-
-  @override
-  State<WP7StyleStartMenu> createState() => _WP7StyleStartMenuState();
+//磁贴大小枚举
+enum TileSize {
+  small, // 1x1 小
+  medium, // 2x2 中
+  wide, // 4x2 宽
 }
 
-class _WP7StyleStartMenuState extends State<WP7StyleStartMenu> {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(top: 20),
-      clipBehavior: Clip.none,
-      child: Center(
-        //padding: const EdgeInsets.all(20),
-        child: Wrap(
-            spacing: 9.6,
-            runSpacing: 9.6,
-            clipBehavior: Clip.none,
-            children: [
-              ...widget.apps.asMap().entries.map((entry) {
-                int index = entry.key;
-                App app = entry.value;
-                return AnimatedBuilder(
-                  animation: widget.animations[index],
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: widget.tileVisibility[index] ? 1.0 : 0.0, // 控制可见性
-                      child: LeftEdgeRotateAnimation(
-                        rotation: widget.animations[index].value,
-                        child: SizedBox(
-                            key: widget.keysList[index],
-                            width: 173 * 0.8,
-                            height: 173 * 0.8,
-                            child: MetroContextMenu(
-                              menu: Column(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  MetroContextMenuItem(
-                                    onTap: () => print('Pin to start'),
-                                    child: const Text('pin to start'),
-                                  ),
-                                  MetroContextMenuItem(
-                                    onTap: () => print('Pin to start'),
-                                    child: const Text('pin to start'),
-                                  ),
-                                ],
-                              ),
-                              child: Tile(
-                                allowBack: true,
-                                onTap: () {
-                                  metroPagePush(
-                                    context,
-                                    MetroPageRoute(
-                                      builder: (context) {
-                                        return app.page;
-                                      },
-                                    ),
-                                    //提供一种便利的方法，可以将范型参数传递给onDidPushNext，主要设计目的是为了方便动画传参
-                                    //例如：Windows Phone中，被点击的Tile往往是最后一个飞出的，可能需要把Tile的index传递过去，然后在onDidPushNext中处理动画
-                                    dataToPass: index,
-                                  );
-                                },
-                                child: app.tile,
-                              ),
-                            )),
-                      ),
-                    );
-                  },
-                );
-              }).toList(),
-            ]),
-      ),
-    );
+//应用数据模型
+class App {
+  final String id; // 应用包名/唯一标识，如 'com.example.weather'
+  final String name; // 应用名称，如 '天气'
+  final Widget icon; // 用于应用列表(App List)的图标
+  final Widget page; // 点击磁贴后跳转的页面组件
+
+  // --- 磁贴视觉层：将磁贴设计交给 App 自身决定 ---
+  final Widget smallTile; // 1x1 磁贴组件 (必须)
+  final Widget mediumTile; // 2x2 磁贴组件 (必须)
+  final Widget? wideTile; // 4x2 磁贴组件 (可选)
+
+  final Color themeColor; // 应用主题色 (用于磁贴背景底色等)
+
+  App({
+    required this.id,
+    required this.name,
+    required this.icon,
+    required this.page,
+    required this.smallTile,
+    required this.mediumTile,
+    this.wideTile, // 宽磁贴可选
+    required this.themeColor,
+  });
+
+  // 提供一个便捷方法：根据尺寸获取对应的磁贴 UI
+  Widget getTileWidget(TileSize size) {
+    switch (size) {
+      case TileSize.small:
+        return smallTile;
+      case TileSize.medium:
+        return mediumTile;
+      case TileSize.wide:
+        // 如果请求宽磁贴但该 App 没有提供，就降级返回中等尺寸（或者给个警告）
+        return wideTile ?? mediumTile;
+    }
   }
 }
 
+//磁贴实例
+class TileModel {
+  final String instanceId; // 磁贴的实例ID (因为桌面上可能允许放两个相同的应用快捷方式)
+  final App app; // 🌟 核心：它指向哪个应用
 
+  TileSize currentSize; // 🌟 当前在桌面上展示的尺寸
 
+  int gridX;
+  int gridY;
 
+  Offset? dragPixelOffset;
+  GlobalKey key;
 
+  TileModel({
+    required this.instanceId,
+    required this.app,
+    required this.currentSize,
+    required this.gridX,
+    required this.gridY,
+  }) : key = GlobalKey();
 
+  TileModel clone() {
+    return TileModel(
+      instanceId: instanceId,
+      app: app,
+      currentSize: currentSize,
+      gridX: gridX,
+      gridY: gridY,
+    )..key = key;
+  }
 
+  // --- 动态计算占用网格数 ---
+  int get widthCells {
+    switch (currentSize) {
+      case TileSize.small:
+        return 1;
+      case TileSize.medium:
+        return 2;
+      case TileSize.wide:
+        return 4;
+    }
+  }
 
-class App {
-  //储存名字、图标、路由
-  String name;
-  LiveTile tile;
-  Widget page;
-  App({required this.name, required this.tile, required this.page});
+  int get heightCells {
+    switch (currentSize) {
+      case TileSize.small:
+        return 1;
+      case TileSize.medium:
+        return 2;
+      case TileSize.wide:
+        return 2;
+    }
+  }
+
+  // AABB 碰撞检测保持不变
+  bool overlaps(TileModel other) {
+    return gridX < other.gridX + other.widthCells &&
+        gridX + widthCells > other.gridX &&
+        gridY < other.gridY + other.heightCells &&
+        gridY + heightCells > other.gridY;
+  }
+}
+
+class StartMenu extends StatefulWidget {
+  final List<TileModel> initialTiles;
+  final ValueChanged<bool>? onEditModeChanged;
+
+  const StartMenu({
+    super.key,
+    required this.initialTiles,
+    this.onEditModeChanged,
+  });
+
+  @override
+  _StartMenuState createState() => _StartMenuState();
+}
+
+class _StartMenuState extends State<StartMenu> {
+  final int crossAxisCount = 4;
+  final double gridSpacing = 10.0;
+
+  late List<TileModel> tiles;
+
+  @override
+  void initState() {
+    super.initState();
+    tiles = List.from(widget.initialTiles);
+  }
+
+  @override
+  void didUpdateWidget(StartMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Find new tiles added in initialTiles
+    for (var newTile in widget.initialTiles) {
+      if (!tiles.any((t) => t.instanceId == newTile.instanceId)) {
+        setState(() {
+          tiles.add(newTile);
+        });
+      }
+    }
+  }
+
+  // --- UI状态 ---
+  bool isEditMode = false;
+  String? selectedTileId;
+  String? draggingTileId;
+  Offset? initialDragOffset;
+  Offset? initialTouchPosition;
+  bool hasMetDragThreshold = false;
+
+  // --- 引擎状态 ---
+  List<TileModel>? originalItems;
+  Timer? hoverTimer;
+  int lastHoverX = -1;
+  int lastHoverY = -1;
+
+  void _exitEditMode() {
+    if (isEditMode) {
+      setState(() {
+        isEditMode = false;
+        selectedTileId = null;
+        draggingTileId = null;
+      });
+      if (widget.onEditModeChanged != null) {
+        widget.onEditModeChanged!(false);
+      }
+    }
+  }
+
+  // --- 🌟 完美移植：网格碰撞推挤引擎 ---
+  void _updatePreview(int targetX, int targetY) {
+    if (originalItems == null || draggingTileId == null) return;
+
+// --- 🌟 核心修复 1：在覆盖前，先提取当前拖拽砖块的实时像素坐标 ---
+    Offset? currentPixelOffset;
+    try {
+      currentPixelOffset = tiles
+          .firstWhere((e) => e.instanceId == draggingTileId)
+          .dragPixelOffset;
+    } catch (e) {}
+    // -------------------------------------------------------------
+
+    List<TileModel> nextLayout = originalItems!.map((e) => e.clone()).toList();
+    TileModel targetItem =
+        nextLayout.firstWhere((e) => e.instanceId == draggingTileId);
+
+    targetItem.gridX = targetX;
+    targetItem.gridY = targetY;
+
+    // --- 🌟 核心修复 2：将实时坐标强行注入给新的克隆体，防止丢失 ---
+    targetItem.dragPixelOffset = currentPixelOffset;
+    // -------------------------------------------------------------
+
+    List<TileModel> directCollisions = nextLayout
+        .where((item) =>
+            item.instanceId != targetItem.instanceId &&
+            item.overlaps(targetItem))
+        .toList();
+
+    if (directCollisions.isNotEmpty) {
+      bool moved = false;
+      bool canBreakCeiling = false;
+      int ceilingOffsetX = 0;
+      int ceilingOffsetY = 0;
+
+      int groupLeft =
+          directCollisions.map((e) => e.gridX).reduce((a, b) => a < b ? a : b);
+      int groupRight = directCollisions
+          .map((e) => e.gridX + e.widthCells)
+          .reduce((a, b) => a > b ? a : b);
+      int groupTop =
+          directCollisions.map((e) => e.gridY).reduce((a, b) => a < b ? a : b);
+      int groupBottom = directCollisions
+          .map((e) => e.gridY + e.heightCells)
+          .reduce((a, b) => a > b ? a : b);
+
+      double groupCenterX = groupLeft + (groupRight - groupLeft) / 2.0;
+      double groupCenterY = groupTop + (groupBottom - groupTop) / 2.0;
+
+      double targetCenterX = targetItem.gridX + targetItem.widthCells / 2.0;
+      double targetCenterY = targetItem.gridY + targetItem.heightCells / 2.0;
+
+      final directions = [
+        const Offset(0, -1),
+        const Offset(-1, 0),
+        const Offset(1, 0),
+        const Offset(0, 1)
+      ];
+
+      for (var dir in directions) {
+        if (dir.dx < 0 && groupCenterX > targetCenterX) continue;
+        if (dir.dx > 0 && groupCenterX < targetCenterX) continue;
+        if (dir.dy < 0 && groupCenterY > targetCenterY) continue;
+        if (dir.dy > 0 && groupCenterY < targetCenterY) continue;
+
+        int offsetX = 0;
+        int offsetY = 0;
+
+        if (dir.dx < 0) {
+          offsetX = targetItem.gridX - groupRight;
+        } else if (dir.dx > 0) {
+          offsetX = (targetItem.gridX + targetItem.widthCells) - groupLeft;
+        } else if (dir.dy < 0) {
+          offsetY = targetItem.gridY - groupBottom;
+        } else if (dir.dy > 0) {
+          offsetY = (targetItem.gridY + targetItem.heightCells) - groupTop;
+        }
+
+        bool isOutOfBoundsX = false;
+        bool isColliding = false;
+        bool isBreakingCeiling = false;
+
+        for (var item in directCollisions) {
+          int nx = item.gridX + offsetX;
+          int ny = item.gridY + offsetY;
+
+          if (nx < 0 || nx + item.widthCells > crossAxisCount) {
+            isOutOfBoundsX = true;
+            break;
+          }
+
+          TileModel ghost = item.clone();
+          ghost.gridX = nx;
+          ghost.gridY = ny;
+
+          for (var other in nextLayout) {
+            if (other.instanceId == targetItem.instanceId) continue;
+            if (directCollisions.any((e) => e.instanceId == other.instanceId))
+              continue;
+            if (ghost.overlaps(other)) {
+              isColliding = true;
+              break;
+            }
+          }
+          if (isColliding) break;
+          if (ny < 0) isBreakingCeiling = true;
+        }
+
+        if (!isOutOfBoundsX && !isColliding) {
+          if (!isBreakingCeiling) {
+            for (var item in directCollisions) {
+              item.gridX += offsetX;
+              item.gridY += offsetY;
+            }
+            moved = true;
+            break;
+          } else if (dir.dy < 0 && directCollisions.length == 1) {
+            canBreakCeiling = true;
+            ceilingOffsetX = offsetX;
+            ceilingOffsetY = offsetY;
+          }
+        }
+      }
+
+      if (!moved && canBreakCeiling) {
+        for (var item in directCollisions) {
+          item.gridX += ceilingOffsetX;
+          item.gridY += ceilingOffsetY;
+        }
+        moved = true;
+      }
+
+      if (!moved) {
+        var belowRowCollisions =
+            directCollisions.where((e) => e.gridY > targetItem.gridY).toList();
+        if (belowRowCollisions.isNotEmpty) {
+          int maxShiftDown = 0;
+          for (var item in belowRowCollisions) {
+            int requiredShift =
+                (targetItem.gridY + targetItem.heightCells) - item.gridY;
+            if (requiredShift > maxShiftDown) maxShiftDown = requiredShift;
+          }
+          for (var item in nextLayout) {
+            if (item.instanceId != targetItem.instanceId &&
+                item.gridY > targetItem.gridY) {
+              item.gridY += maxShiftDown;
+            }
+          }
+        }
+
+        var topRowCollisions =
+            directCollisions.where((e) => e.gridY <= targetItem.gridY).toList();
+        if (topRowCollisions.isNotEmpty) {
+          int maxShiftUp = 0;
+          for (var item in topRowCollisions) {
+            int requiredShift =
+                (item.gridY + item.heightCells) - targetItem.gridY;
+            if (requiredShift > maxShiftUp) maxShiftUp = requiredShift;
+          }
+          for (var item in nextLayout) {
+            if (item.instanceId != targetItem.instanceId &&
+                item.gridY <= targetItem.gridY) {
+              item.gridY -= maxShiftUp;
+            }
+          }
+        }
+      }
+    }
+
+    setState(() {
+      tiles = nextLayout;
+    });
+  }
+
+  void _finalizeLayout() {
+    setState(() {
+      int minY = tiles.map((e) => e.gridY).reduce((a, b) => a < b ? a : b);
+      if (minY < 0) {
+        int offset = minY.abs();
+        for (var item in tiles) {
+          item.gridY += offset;
+        }
+      }
+      _compactLayout(tiles);
+    });
+  }
+
+  void _compactLayout(List<TileModel> allItems) {
+    int maxY = allItems.fold(
+        0,
+        (max, e) =>
+            e.gridY + e.heightCells > max ? e.gridY + e.heightCells : max);
+    for (int y = 0; y < maxY; y++) {
+      bool isRowOccupied = allItems
+          .any((item) => y >= item.gridY && y < item.gridY + item.heightCells);
+      if (!isRowOccupied) {
+        bool hasItemsBelow = allItems.any((item) => item.gridY > y);
+        if (hasItemsBelow) {
+          for (var item in allItems) {
+            if (item.gridY > y) item.gridY -= 1;
+          }
+          y--;
+          maxY--;
+        }
+      }
+    }
+  }
+
+  // --- 滑动核心接管 ---
+  void _onDragStart(
+      TileModel tile, Offset touchPosition, double left, double top) {
+    setState(() {
+      if (!isEditMode) {
+        if (widget.onEditModeChanged != null) {
+          widget.onEditModeChanged!(true);
+        }
+      }
+      isEditMode = true;
+      selectedTileId = tile.instanceId;
+      draggingTileId = tile.instanceId;
+      initialDragOffset = Offset(left, top);
+      initialTouchPosition = touchPosition;
+      hasMetDragThreshold = false;
+      tile.dragPixelOffset = initialDragOffset;
+
+      // 🌟 保存布局快照
+      originalItems = tiles.map((e) => e.clone()).toList();
+    });
+  }
+
+  void _onDragUpdate(
+      TileModel tile, Offset currentTouchPosition, double cellSize) {
+    if (draggingTileId == tile.instanceId &&
+        initialTouchPosition != null &&
+        initialDragOffset != null) {
+      final distance = (currentTouchPosition - initialTouchPosition!).distance;
+
+      setState(() {
+        //拖拽距离达到一定程度才允许图标拖拽
+        if (!hasMetDragThreshold && distance > 70.0) {
+          hasMetDragThreshold = true;
+        }
+        if (hasMetDragThreshold) {
+          // 更新物理像素用于渲染
+          tile.dragPixelOffset = initialDragOffset! +
+              (currentTouchPosition - initialTouchPosition!);
+
+          // 🌟 结合你的基于中心点的平滑吸附计算
+          int newGridX =
+              ((tile.dragPixelOffset!.dx + (tile.widthCells * cellSize) / 2) /
+                          cellSize)
+                      .floor() -
+                  (tile.widthCells / 2).floor();
+          int newGridY =
+              ((tile.dragPixelOffset!.dy + (tile.heightCells * cellSize) / 2) /
+                          cellSize)
+                      .floor() -
+                  (tile.heightCells / 2).floor();
+
+          newGridX = newGridX.clamp(0, crossAxisCount - tile.widthCells);
+          newGridY = newGridY >= 0 ? newGridY : 0;
+
+          // 🌟 Hover防抖判断
+          if (newGridX != lastHoverX || newGridY != lastHoverY) {
+            lastHoverX = newGridX;
+            lastHoverY = newGridY;
+
+            hoverTimer?.cancel();
+            hoverTimer = Timer(const Duration(milliseconds: 120), () {
+              _updatePreview(newGridX, newGridY);
+            });
+          }
+        }
+      });
+    }
+  }
+
+  void _onDragEnd(TileModel tile, double cellSize) {
+    setState(() {
+      hoverTimer?.cancel();
+
+      if (tile.dragPixelOffset != null && hasMetDragThreshold) {
+        int finalX =
+            ((tile.dragPixelOffset!.dx + (tile.widthCells * cellSize) / 2) /
+                        cellSize)
+                    .floor() -
+                (tile.widthCells / 2).floor();
+        int finalY =
+            ((tile.dragPixelOffset!.dy + (tile.heightCells * cellSize) / 2) /
+                        cellSize)
+                    .floor() -
+                (tile.heightCells / 2).floor();
+        finalX = finalX.clamp(0, crossAxisCount - tile.widthCells);
+        finalY = finalY >= 0 ? finalY : 0;
+
+        // 强制最后执行一次确保落地位置正确
+        _updatePreview(finalX, finalY);
+        _finalizeLayout();
+      } else {
+        // 如果没有突破死区，恢复快照
+        if (originalItems != null) {
+          tiles = originalItems!;
+        }
+      }
+
+      // 清理引擎状态
+      draggingTileId = null;
+      tile.dragPixelOffset = null;
+      initialDragOffset = null;
+      initialTouchPosition = null;
+      hasMetDragThreshold = false;
+      originalItems = null;
+      lastHoverX = -1;
+      lastHoverY = -1;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MetroPageScaffold(
+      backgroundColor: Colors.grey[900],
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _exitEditMode,
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double cellSize = constraints.maxWidth / crossAxisCount;
+
+              List<Widget> normalTiles = [];
+              Widget? activeTileWidget;
+
+              for (var tile in tiles) {
+                Widget tileWidget = _buildTile(tile, cellSize);
+                if (tile.instanceId == selectedTileId) {
+                  activeTileWidget = tileWidget;
+                } else {
+                  normalTiles.add(tileWidget);
+                }
+              }
+
+              if (activeTileWidget != null) normalTiles.add(activeTileWidget);
+
+              return Stack(children: normalTiles);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTile(TileModel tile, double cellSize) {
+    final bool isSelected = tile.instanceId == selectedTileId;
+    final bool isActuallyDragging =
+        (tile.instanceId == draggingTileId) && hasMetDragThreshold;
+
+    double targetOpacity = 1.0;
+    if (isEditMode) {
+      targetOpacity = isSelected ? (isActuallyDragging ? 0.8 : 1.0) : 0.5;
+    }
+
+    final double targetZ = isEditMode ? 150.0 : 0.0;
+    //final double targetZ = (isEditMode && !isSelected) ? 150.0 : 0.0;
+    double targetScale = (!isEditMode || isSelected) ? 1.0 : 0.9;
+
+    // 非拖拽状态下使用计算出的物理像素
+    final double targetLeft = tile.gridX * cellSize;
+    final double targetTop = tile.gridY * cellSize;
+
+    // 拖拽时使用真实像素
+    final double left = isActuallyDragging && tile.dragPixelOffset != null
+        ? tile.dragPixelOffset!.dx
+        : targetLeft;
+    final double top = isActuallyDragging && tile.dragPixelOffset != null
+        ? tile.dragPixelOffset!.dy
+        : targetTop;
+    final double width = tile.widthCells * cellSize - gridSpacing;
+    final double height = tile.heightCells * cellSize - gridSpacing;
+
+    // 🌟 核心：使用 AnimatedPositioned 实现布局改变时的自动顺滑挤推
+    return AnimatedPositioned(
+      key: tile.key,
+      duration: Duration(
+          milliseconds: isActuallyDragging ? 0 : 300), // 拖拽时立即响应，排版推挤时300ms过渡
+      curve: Curves.easeOutCubic,
+      left: left + gridSpacing / 2,
+      top: top + gridSpacing / 2,
+      width: width,
+      height: height,
+      child: FloatingWrapper(
+        isFloating: isEditMode && !isSelected,
+        child: GestureDetector(
+          onTap: () {
+            if (isEditMode) setState(() => selectedTileId = tile.instanceId);
+          },
+          onLongPressStart: (details) =>
+              _onDragStart(tile, details.globalPosition, targetLeft, targetTop),
+          onLongPressMoveUpdate: (details) =>
+              _onDragUpdate(tile, details.globalPosition, cellSize),
+          onLongPressEnd: (details) => _onDragEnd(tile, cellSize),
+          onPanStart: (isEditMode && isSelected)
+              ? (details) => _onDragStart(
+                  tile, details.globalPosition, targetLeft, targetTop)
+              : null,
+          onPanUpdate: (isEditMode && isSelected)
+              ? (details) =>
+                  _onDragUpdate(tile, details.globalPosition, cellSize)
+              : null,
+          onPanEnd: (isEditMode && isSelected)
+              ? (details) => _onDragEnd(tile, cellSize)
+              : null,
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 200),
+            scale: targetScale,
+            curve: Curves.easeOutCubic,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0.0, end: targetZ),
+              duration: Duration(milliseconds: isActuallyDragging ? 0 : 200),
+              curve: Curves.easeOut,
+              builder: (context, zValue, child) {
+                Matrix4 currentTransform = Matrix4.identity();
+                if (zValue != 0) {
+                  currentTransform.rotateX(0.000000001);
+                }
+                currentTransform.translate(0.0, 0.0, zValue);
+
+                return Transform(
+                  alignment: FractionalOffset.center,
+                  transform: currentTransform,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: targetOpacity,
+                    child: Container(
+                      color: tile.app.themeColor,
+                      child: tile.app.getTileWidget(tile.currentSize),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 //动态磁贴
@@ -1116,6 +1396,76 @@ class _MetroAppTileState extends State<MetroAppTile>
         ),
       ),
       // 标题：左下角
+    );
+  }
+}
+
+// --- 1. 浮动效果包装器保持不变 ---
+class FloatingWrapper extends StatefulWidget {
+  final bool isFloating;
+  final Widget child;
+
+  const FloatingWrapper({super.key, required this.isFloating, required this.child});
+
+  @override
+  _FloatingWrapperState createState() => _FloatingWrapperState();
+}
+
+class _FloatingWrapperState extends State<FloatingWrapper> {
+  double _dx = 0;
+  double _dy = 0;
+  int _durationMs = 300;
+  Timer? _timer;
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isFloating) _startFloatingLoop();
+  }
+
+  @override
+  void didUpdateWidget(FloatingWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isFloating && !oldWidget.isFloating) {
+      _startFloatingLoop();
+    } else if (!widget.isFloating && oldWidget.isFloating) {
+      _stopFloating();
+    }
+  }
+
+  void _startFloatingLoop() {
+    if (!widget.isFloating) return;
+    setState(() {
+      _dx = (_random.nextDouble() * 20) - 10;
+      _dy = (_random.nextDouble() * 20) - 10;
+      _durationMs = 1000 + _random.nextInt(1001);
+    });
+    _timer = Timer(Duration(milliseconds: _durationMs), _startFloatingLoop);
+  }
+
+  void _stopFloating() {
+    _timer?.cancel();
+    setState(() {
+      _dx = 0;
+      _dy = 0;
+      _durationMs = 300;
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: _durationMs),
+      curve: Curves.easeInOutSine,
+      transform: Matrix4.translationValues(_dx, _dy, 0),
+      child: widget.child,
     );
   }
 }
