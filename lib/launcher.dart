@@ -469,13 +469,16 @@ class _LauncherPageState extends State<LauncherPage>
                           itemCount: apps.length,
                           itemBuilder: (context, index) {
                             final app = apps[index];
+                            final GlobalKey<MetroContextMenuState> menuKey = GlobalKey<MetroContextMenuState>();
                             return MetroContextMenu(
-                              
+                              key: menuKey,
                               menu: MetroContextMenuItem(
                                 child: const Text('pin to start'),
                                 onTap: () {
-                                setState(() {
-                                  _pinnedTiles.add(TileModel(
+                                  //关闭上下文菜单然后回到第一页
+                                  menuKey.currentState?.dismissMenu();
+                                  setState(() {
+                                    _pinnedTiles.add(TileModel(
                                     instanceId:
                                         '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
                                     app: app,
@@ -1009,16 +1012,8 @@ class _StartMenuState extends State<StartMenu> {
               (currentTouchPosition - initialTouchPosition!);
 
           // 🌟 结合你的基于中心点的平滑吸附计算
-          int newGridX =
-              ((tile.dragPixelOffset!.dx + (tile.widthCells * cellSize) / 2) /
-                          cellSize)
-                      .floor() -
-                  (tile.widthCells / 2).floor();
-          int newGridY =
-              ((tile.dragPixelOffset!.dy + (tile.heightCells * cellSize) / 2) /
-                          cellSize)
-                      .floor() -
-                  (tile.heightCells / 2).floor();
+          int newGridX = (tile.dragPixelOffset!.dx / cellSize).round();
+          int newGridY = (tile.dragPixelOffset!.dy / cellSize).round();
 
           newGridX = newGridX.clamp(0, crossAxisCount - tile.widthCells);
           newGridY = newGridY >= 0 ? newGridY : 0;
@@ -1043,16 +1038,8 @@ class _StartMenuState extends State<StartMenu> {
       hoverTimer?.cancel();
 
       if (tile.dragPixelOffset != null && hasMetDragThreshold) {
-        int finalX =
-            ((tile.dragPixelOffset!.dx + (tile.widthCells * cellSize) / 2) /
-                        cellSize)
-                    .floor() -
-                (tile.widthCells / 2).floor();
-        int finalY =
-            ((tile.dragPixelOffset!.dy + (tile.heightCells * cellSize) / 2) /
-                        cellSize)
-                    .floor() -
-                (tile.heightCells / 2).floor();
+        int finalX = (tile.dragPixelOffset!.dx / cellSize).round();
+        int finalY = (tile.dragPixelOffset!.dy / cellSize).round();
         finalX = finalX.clamp(0, crossAxisCount - tile.widthCells);
         finalY = finalY >= 0 ? finalY : 0;
 
@@ -1096,7 +1083,7 @@ class _StartMenuState extends State<StartMenu> {
               Widget? activeTileWidget;
 
               for (var tile in tiles) {
-                Widget tileWidget = _buildTile(tile, cellSize);
+                Widget tileWidget = _buildTile(tile, cellSize, context);
                 if (tile.instanceId == selectedTileId) {
                   activeTileWidget = tileWidget;
                 } else {
@@ -1114,7 +1101,7 @@ class _StartMenuState extends State<StartMenu> {
     );
   }
 
-  Widget _buildTile(TileModel tile, double cellSize) {
+  Widget _buildTile(TileModel tile, double cellSize, BuildContext context) {
     final bool isSelected = tile.instanceId == selectedTileId;
     final bool isActuallyDragging =
         (tile.instanceId == draggingTileId) && hasMetDragThreshold;
@@ -1158,18 +1145,27 @@ class _StartMenuState extends State<StartMenu> {
           onTap: () {
             if (isEditMode) setState(() => selectedTileId = tile.instanceId);
           },
-          onLongPressStart: (details) =>
-              _onDragStart(tile, details.globalPosition, targetLeft, targetTop),
-          onLongPressMoveUpdate: (details) =>
-              _onDragUpdate(tile, details.globalPosition, cellSize),
+          onLongPressStart: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            _onDragStart(tile, box.globalToLocal(details.globalPosition), targetLeft, targetTop);
+          },
+          onLongPressMoveUpdate: (details) {
+            final RenderBox box = context.findRenderObject() as RenderBox;
+            _onDragUpdate(tile, box.globalToLocal(details.globalPosition), cellSize);
+          },
           onLongPressEnd: (details) => _onDragEnd(tile, cellSize),
           onPanStart: (isEditMode && isSelected)
-              ? (details) => _onDragStart(
-                  tile, details.globalPosition, targetLeft, targetTop)
+              ? (details) {
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  _onDragStart(
+                      tile, box.globalToLocal(details.globalPosition), targetLeft, targetTop);
+                }
               : null,
           onPanUpdate: (isEditMode && isSelected)
-              ? (details) =>
-                  _onDragUpdate(tile, details.globalPosition, cellSize)
+              ? (details) {
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  _onDragUpdate(tile, box.globalToLocal(details.globalPosition), cellSize);
+                }
               : null,
           onPanEnd: (isEditMode && isSelected)
               ? (details) => _onDragEnd(tile, cellSize)
