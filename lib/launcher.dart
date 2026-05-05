@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:math';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:metro_ui/animations.dart';
+import 'package:metro_ui/metro_page_push.dart';
+import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
+import 'package:metro_ui/widgets/context_menu.dart';
+import 'package:metro_ui/widgets/tile.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
 
 class LauncherPage extends StatefulWidget {
@@ -24,6 +29,7 @@ class _LauncherPageState extends State<LauncherPage>
   late List<bool> _tileVisibility; // 控制每个 tile 的可见性
 
   bool _isEditMode = false; // 是否处于编辑模式
+  final GlobalKey<_StartMenuState> _startMenuKey = GlobalKey<_StartMenuState>();
 
   final int pushTime = 350; //非被点击的Tile总飞出时间
   final int singleTileTime = 150; //单个Tile飞出时间
@@ -36,15 +42,66 @@ class _LauncherPageState extends State<LauncherPage>
           name: '天气',
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
-          page: const Splashscreen(), // 你的天气页面组件
+          page: const Splashscreen(), 
           smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
-          mediumTile: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          mediumTile: LiveTile(
+              size: LiveTileSize.medium,
+              flipStyle: FlipStyle.elastic,
+              name: const Text('Panorama'),
+              children: [
+                MetroAppTile(
+                  icon: const Icon(
+                    Icons.map,
+                    size: 70,
+                  ),
+                  count: 2,
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Text(
+                    'Panorama Hub页面，具有浓郁的WP特色',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+          wideTile: const Row(
+            // 宽磁贴可以放更多信息
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Icon(Icons.wb_sunny, color: Colors.white, size: 36),
-              Text('24°C', style: TextStyle(color: Colors.white, fontSize: 18)),
+              Icon(Icons.wb_sunny, color: Colors.white, size: 40),
+              Text('新北市板桥区\n晴天 24°C', style: TextStyle(color: Colors.white)),
             ],
           ),
+        ),
+                App(
+          id: 'com.ms.weather2',
+          name: '天气2',
+          themeColor: Colors.blue,
+          icon: const Icon(Icons.wb_sunny),
+          page: const Splashscreen(), 
+          smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
+          mediumTile: LiveTile(
+              size: LiveTileSize.medium,
+              flipStyle: FlipStyle.elastic,
+              name: const Text('Panorama2'),
+              children: [
+                MetroAppTile(
+                  icon: const Icon(
+                    Icons.map,
+                    size: 70,
+                  ),
+                  count: 2,
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Text(
+                    'Panorama Hub页面，具有浓郁的WP特色',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
           wideTile: const Row(
             // 宽磁贴可以放更多信息
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -344,8 +401,6 @@ class _LauncherPageState extends State<LauncherPage>
     });
   }
 
-  //Future<void> _start
-
   @override
   Widget build(BuildContext context) {
     return MetroPageScaffold(
@@ -369,19 +424,27 @@ class _LauncherPageState extends State<LauncherPage>
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: _isEditMode 
-                ? const NeverScrollableScrollPhysics() 
-                : LauncherSnapPhysics(
-                    snapOffsets: [0, screenWidth - 60],
-                    parent: const ClampingScrollPhysics(), // 禁用边界回弹
-                  ),
+          return ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+              },
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: _isEditMode
+                  ? const NeverScrollableScrollPhysics()
+                  : LauncherSnapPhysics(
+                      snapOffsets: [0, screenWidth - 60],
+                      parent: const ClampingScrollPhysics(), // 禁用边界回弹
+                    ),
             child: Row(
               children: [
                 SizedBox(
                   width: screenWidth - 60,
                   child: StartMenu(
+                    key: _startMenuKey,
                     initialTiles: _pinnedTiles,
                     onEditModeChanged: (isEdit) {
                       setState(() {
@@ -392,45 +455,64 @@ class _LauncherPageState extends State<LauncherPage>
                 ),
                 SizedBox(
                   width: screenWidth,
-                  child: Container(
-                    color: Colors.black,
-                    padding: const EdgeInsets.only(top: 40, left: 20),
-                    child: ListView.builder(
-                      itemCount: apps.length,
-                      itemBuilder: (context, index) {
-                        final app = apps[index];
-                        return GestureDetector(
-                          onLongPress: () {
-                            setState(() {
-                              _pinnedTiles.add(TileModel(
-                                instanceId: '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
-                                app: app,
-                                currentSize: TileSize.medium,
-                                gridX: 0, // In reality, we should find an empty spot
-                                gridY: _pinnedTiles.lastOrNull != null ? _pinnedTiles.last.gridY + 2 : 0,
-                              ));
-                            });
+                  child: GestureDetector(
+                    onTap: _isEditMode
+                        ? () => _startMenuKey.currentState?.exitEditMode()
+                        : null,
+                    behavior: HitTestBehavior.opaque,
+                    child: AbsorbPointer(
+                      absorbing: _isEditMode,
+                      child: Container(
+                        color: Colors.black,
+                        padding: const EdgeInsets.only(top: 40, left: 20),
+                        child: ListView.builder(
+                          itemCount: apps.length,
+                          itemBuilder: (context, index) {
+                            final app = apps[index];
+                            return MetroContextMenu(
+                              
+                              menu: MetroContextMenuItem(
+                                child: const Text('pin to start'),
+                                onTap: () {
+                                setState(() {
+                                  _pinnedTiles.add(TileModel(
+                                    instanceId:
+                                        '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
+                                    app: app,
+                                    currentSize: TileSize.medium,
+                                    gridX:
+                                        0, // In reality, we should find an empty spot
+                                    gridY: _pinnedTiles.lastOrNull != null
+                                        ? _pinnedTiles.last.gridY + 2
+                                        : 0,
+                                  ));
+                                });
+                              },
+
+                              ),
+                              child: ListTile(
+                                leading: Container(
+                                  width: 48,
+                                  height: 48,
+                                  color: app.themeColor,
+                                  child: app.icon,
+                                ),
+                                title: Text(
+                                  app.name,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 24),
+                                ),
+                              ),
+                            );
                           },
-                          child: ListTile(
-                            leading: Container(
-                              width: 48,
-                              height: 48,
-                              color: app.themeColor,
-                              child: app.icon,
-                            ),
-                            title: Text(
-                              app.name,
-                              style: const TextStyle(color: Colors.white, fontSize: 24),
-                            ),
-                          ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-          );
+          ));
         },
       ),
     );
@@ -665,7 +747,7 @@ class _StartMenuState extends State<StartMenu> {
   int lastHoverX = -1;
   int lastHoverY = -1;
 
-  void _exitEditMode() {
+  void exitEditMode() {
     if (isEditMode) {
       setState(() {
         isEditMode = false;
@@ -1002,7 +1084,7 @@ class _StartMenuState extends State<StartMenu> {
       backgroundColor: Colors.grey[900],
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: _exitEditMode,
+        onTap: exitEditMode,
         child: Container(
           width: double.infinity,
           height: double.infinity,
@@ -1113,10 +1195,31 @@ class _StartMenuState extends State<StartMenu> {
                   child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 200),
                     opacity: targetOpacity,
-                    child: Container(
-                      color: tile.app.themeColor,
+                    child: 
+                    //当if (!isEditMode)的时候tile不再接收点击事件
+
+                    
+                        AbsorbPointer(
+                          absorbing: isEditMode,
+                          child: Tile(
                       child: tile.app.getTileWidget(tile.currentSize),
+                      onTap: () {
+                         
+                          metroPagePush(
+                            context,
+                            MetroPageRoute(
+                              builder: (context) {
+                                return tile.app.page;
+                              },
+                            ),
+                            //提供一种便利的方法，可以将范型参数传递给onDidPushNext，主要设计目的是为了方便动画传参
+                            //例如：Windows Phone中，被点击的Tile往往是最后一个飞出的，可能需要把Tile的index传递过去，然后在onDidPushNext中处理动画
+                            //dataToPass: index,
+                          );
+                        
+                      },
                     ),
+                        ),
                   ),
                 );
               },
@@ -1405,7 +1508,8 @@ class FloatingWrapper extends StatefulWidget {
   final bool isFloating;
   final Widget child;
 
-  const FloatingWrapper({super.key, required this.isFloating, required this.child});
+  const FloatingWrapper(
+      {super.key, required this.isFloating, required this.child});
 
   @override
   _FloatingWrapperState createState() => _FloatingWrapperState();
