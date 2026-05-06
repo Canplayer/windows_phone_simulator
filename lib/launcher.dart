@@ -42,29 +42,29 @@ class _LauncherPageState extends State<LauncherPage>
           name: '天气',
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
-          page: const Splashscreen(), 
+          page: const Splashscreen(),
           smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
           mediumTile: LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: const Text('Panorama'),
-              children: [
-                MetroAppTile(
-                  icon: const Icon(
-                    Icons.map,
-                    size: 70,
-                  ),
-                  count: 2,
+            size: LiveTileSize.medium,
+            flipStyle: FlipStyle.elastic,
+            name: const Text('Panorama'),
+            children: [
+              MetroAppTile(
+                icon: const Icon(
+                  Icons.map,
+                  size: 70,
                 ),
-                const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Panorama Hub页面，具有浓郁的WP特色',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                count: 2,
+              ),
+              const Padding(
+                padding: EdgeInsets.all(10),
+                child: Text(
+                  'Panorama Hub页面，具有浓郁的WP特色',
+                  style: TextStyle(fontSize: 18),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
           wideTile: const Row(
             // 宽磁贴可以放更多信息
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -74,34 +74,34 @@ class _LauncherPageState extends State<LauncherPage>
             ],
           ),
         ),
-                App(
+        App(
           id: 'com.ms.weather2',
           name: '天气2',
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
-          page: const Splashscreen(), 
+          page: const Splashscreen(),
           smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
           mediumTile: LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: const Text('Panorama2'),
-              children: [
-                MetroAppTile(
-                  icon: const Icon(
-                    Icons.map,
-                    size: 70,
-                  ),
-                  count: 2,
+            size: LiveTileSize.medium,
+            flipStyle: FlipStyle.elastic,
+            name: const Text('Panorama2'),
+            children: [
+              MetroAppTile(
+                icon: const Icon(
+                  Icons.map,
+                  size: 70,
                 ),
-                const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Panorama Hub页面，具有浓郁的WP特色',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                count: 2,
+              ),
+              const Padding(
+                padding: EdgeInsets.all(10),
+                child: Text(
+                  'Panorama Hub页面，具有浓郁的WP特色',
+                  style: TextStyle(fontSize: 18),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
           wideTile: const Row(
             // 宽磁贴可以放更多信息
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -425,97 +425,98 @@ class _LauncherPageState extends State<LauncherPage>
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
           return ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              dragDevices: {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-              },
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: _isEditMode
-                  ? const NeverScrollableScrollPhysics()
-                  : LauncherSnapPhysics(
-                      snapOffsets: [0, screenWidth - 60],
-                      parent: const ClampingScrollPhysics(), // 禁用边界回弹
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                },
+              ),
+              child: SingleChildScrollView(
+                clipBehavior: Clip.none,
+                scrollDirection: Axis.horizontal,
+                physics: _isEditMode
+                    ? const NeverScrollableScrollPhysics()
+                    : LauncherSnapPhysics(
+                        snapOffsets: [0, screenWidth - 60],
+                        parent: const ClampingScrollPhysics(), // 禁用边界回弹
+                      ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: screenWidth - 60,
+                      child: StartMenu(
+                        key: _startMenuKey,
+                        initialTiles: _pinnedTiles,
+                        onEditModeChanged: (isEdit) {
+                          setState(() {
+                            _isEditMode = isEdit;
+                          });
+                        },
+                      ),
                     ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: screenWidth - 60,
-                  child: StartMenu(
-                    key: _startMenuKey,
-                    initialTiles: _pinnedTiles,
-                    onEditModeChanged: (isEdit) {
-                      setState(() {
-                        _isEditMode = isEdit;
-                      });
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: screenWidth,
-                  child: GestureDetector(
-                    onTap: _isEditMode
-                        ? () => _startMenuKey.currentState?.exitEditMode()
-                        : null,
-                    behavior: HitTestBehavior.opaque,
-                    child: AbsorbPointer(
-                      absorbing: _isEditMode,
-                      child: Container(
-                        color: Colors.black,
-                        padding: const EdgeInsets.only(top: 40, left: 20),
-                        child: ListView.builder(
-                          itemCount: apps.length,
-                          itemBuilder: (context, index) {
-                            final app = apps[index];
-                            final GlobalKey<MetroContextMenuState> menuKey = GlobalKey<MetroContextMenuState>();
-                            return MetroContextMenu(
-                              key: menuKey,
-                              menu: MetroContextMenuItem(
-                                child: const Text('pin to start'),
-                                onTap: () {
-                                  //关闭上下文菜单然后回到第一页
-                                  menuKey.currentState?.dismissMenu();
-                                  setState(() {
-                                    _pinnedTiles.add(TileModel(
-                                    instanceId:
-                                        '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
-                                    app: app,
-                                    currentSize: TileSize.medium,
-                                    gridX:
-                                        0, // In reality, we should find an empty spot
-                                    gridY: _pinnedTiles.lastOrNull != null
-                                        ? _pinnedTiles.last.gridY + 2
-                                        : 0,
-                                  ));
-                                });
+                    SizedBox(
+                      width: screenWidth,
+                      child: GestureDetector(
+                        onTap: _isEditMode
+                            ? () => _startMenuKey.currentState?.exitEditMode()
+                            : null,
+                        behavior: HitTestBehavior.opaque,
+                        child: AbsorbPointer(
+                          absorbing: _isEditMode,
+                          child: Container(
+                            //color: Colors.transparent,
+                            padding: const EdgeInsets.only(top: 40, left: 20),
+                            child: ListView.builder(
+                              itemCount: apps.length,
+                              itemBuilder: (context, index) {
+                                final app = apps[index];
+                                final GlobalKey<MetroContextMenuState> menuKey =
+                                    GlobalKey<MetroContextMenuState>();
+                                return MetroContextMenu(
+                                  key: menuKey,
+                                  menu: MetroContextMenuItem(
+                                    child: const Text('pin to start'),
+                                    onTap: () {
+                                      //关闭上下文菜单然后回到第一页
+                                      menuKey.currentState?.dismissMenu();
+                                      setState(() {
+                                        _pinnedTiles.add(TileModel(
+                                          instanceId:
+                                              '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
+                                          app: app,
+                                          currentSize: TileSize.medium,
+                                          gridX:
+                                              0, // In reality, we should find an empty spot
+                                          gridY: _pinnedTiles.lastOrNull != null
+                                              ? _pinnedTiles.last.gridY + 2
+                                              : 0,
+                                        ));
+                                      });
+                                    },
+                                  ),
+                                  child: ListTile(
+                                    leading: Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: app.themeColor,
+                                      child: app.icon,
+                                    ),
+                                    title: Text(
+                                      app.name,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 24),
+                                    ),
+                                  ),
+                                );
                               },
-
-                              ),
-                              child: ListTile(
-                                leading: Container(
-                                  width: 48,
-                                  height: 48,
-                                  color: app.themeColor,
-                                  child: app.icon,
-                                ),
-                                title: Text(
-                                  app.name,
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 24),
-                                ),
-                              ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ));
+              ));
         },
       ),
     );
@@ -1067,12 +1068,15 @@ class _StartMenuState extends State<StartMenu> {
 
   @override
   Widget build(BuildContext context) {
-    return MetroPageScaffold(
-      backgroundColor: Colors.grey[900],
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: exitEditMode,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: exitEditMode,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 200),
+        scale: isEditMode ? 0.9 : 1.0,
+        curve: Curves.easeOutCubic,
         child: Container(
+          color: Colors.yellow,
           width: double.infinity,
           height: double.infinity,
           child: LayoutBuilder(
@@ -1093,7 +1097,10 @@ class _StartMenuState extends State<StartMenu> {
 
               if (activeTileWidget != null) normalTiles.add(activeTileWidget);
 
-              return Stack(children: normalTiles);
+              return Stack(
+                clipBehavior: Clip.none,
+                children: normalTiles,
+              );
             },
           ),
         ),
@@ -1111,9 +1118,12 @@ class _StartMenuState extends State<StartMenu> {
       targetOpacity = isSelected ? (isActuallyDragging ? 0.8 : 1.0) : 0.5;
     }
 
-    final double targetZ = isEditMode ? 150.0 : 0.0;
-    //final double targetZ = (isEditMode && !isSelected) ? 150.0 : 0.0;
-    double targetScale = (!isEditMode || isSelected) ? 1.0 : 0.9;
+    // 移除单体缩降逻辑，交由外部画布统一缩小
+    double targetScale = 1.0;
+    if (isEditMode) {
+      // 补偿由于外部画布整体 0.9 缩小带来的影响，使选中图块在视觉上更为凸显
+      targetScale = isSelected ? 1 : 0.9;
+    }
 
     // 非拖拽状态下使用计算出的物理像素
     final double targetLeft = tile.gridX * cellSize;
@@ -1129,98 +1139,162 @@ class _StartMenuState extends State<StartMenu> {
     final double width = tile.widthCells * cellSize - gridSpacing;
     final double height = tile.heightCells * cellSize - gridSpacing;
 
+    // 为溢出边界的圆形按钮专门外扩布局空间，打破 Flutter 严格的 hitTest bounds 限制
+    final double circleSize = 48.125 * 0.8;
+    final double expandOffset = circleSize / 2;
+
+    // 主要的拖拽手势和磁贴本身
+    Widget tileGestureContent = GestureDetector(
+      onTap: () {
+        if (isEditMode) setState(() => selectedTileId = tile.instanceId);
+      },
+      onLongPressStart: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        _onDragStart(tile, box.globalToLocal(details.globalPosition),
+            targetLeft, targetTop);
+      },
+      onLongPressMoveUpdate: (details) {
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        _onDragUpdate(
+            tile, box.globalToLocal(details.globalPosition), cellSize);
+      },
+      onLongPressEnd: (details) => _onDragEnd(tile, cellSize),
+      onPanStart: (isEditMode && isSelected)
+          ? (details) {
+              final RenderBox box = context.findRenderObject() as RenderBox;
+              _onDragStart(tile, box.globalToLocal(details.globalPosition),
+                  targetLeft, targetTop);
+            }
+          : null,
+      onPanUpdate: (isEditMode && isSelected)
+          ? (details) {
+              final RenderBox box = context.findRenderObject() as RenderBox;
+              _onDragUpdate(
+                  tile, box.globalToLocal(details.globalPosition), cellSize);
+            }
+          : null,
+      onPanEnd: (isEditMode && isSelected)
+          ? (details) => _onDragEnd(tile, cellSize)
+          : null,
+      child: AbsorbPointer(
+        absorbing: isEditMode,
+        child: Tile(
+          child: tile.app.getTileWidget(tile.currentSize),
+          onTap: () {
+            metroPagePush(
+              context,
+              MetroPageRoute(
+                builder: (context) {
+                  return tile.app.page;
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    Widget tileContent = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // 把原本的瓷贴放到扩充中心位置
+        Positioned(
+          left: expandOffset,
+          top: expandOffset,
+          right: expandOffset,
+          bottom: expandOffset,
+          child: tileGestureContent,
+        ),
+        if (isEditMode && isSelected && !isActuallyDragging) ...[
+          // Top right: unpin
+          Positioned(
+            top: 0,
+            right: 0,
+            width: circleSize,
+            height: circleSize,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: targetOpacity,
+              child: _EditButton(
+                icon: const Icon(Icons.push_pin_outlined), // 移除pin图标
+                onPressed: () {
+                  setState(() {
+                    tiles.removeWhere((t) => t.instanceId == tile.instanceId);
+                    _finalizeLayout();
+                    if (tiles.isEmpty) {
+                      exitEditMode();
+                    } else {
+                      selectedTileId = null;
+                    }
+                  });
+                },
+              ),
+            ),
+          ),
+          // Bottom right: resize
+          Positioned(
+            bottom: 0,
+            right: 0,
+            width: circleSize,
+            height: circleSize,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: targetOpacity,
+              child: _EditButton(
+                icon: Transform.rotate(
+                  angle: pi / 4,
+                  child: const Icon(Icons.arrow_forward), // 调整大小箭头
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (tile.currentSize == TileSize.small) {
+                      tile.currentSize = TileSize.medium;
+                    } else if (tile.currentSize == TileSize.medium) {
+                      if (tile.app.wideTile != null) {
+                        tile.currentSize = TileSize.wide;
+                      } else {
+                        tile.currentSize = TileSize.small;
+                      }
+                    } else {
+                      tile.currentSize = TileSize.small;
+                    }
+
+                    // 强制挤推周围元素处理新大小的碰撞
+                    draggingTileId = tile.instanceId;
+                    originalItems = tiles.map((e) => e.clone()).toList();
+                    _updatePreview(tile.gridX, tile.gridY);
+                    _finalizeLayout();
+                    draggingTileId = null;
+                    originalItems = null;
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
     // 🌟 核心：使用 AnimatedPositioned 实现布局改变时的自动顺滑挤推
     return AnimatedPositioned(
       key: tile.key,
       duration: Duration(
           milliseconds: isActuallyDragging ? 0 : 300), // 拖拽时立即响应，排版推挤时300ms过渡
       curve: Curves.easeOutCubic,
-      left: left + gridSpacing / 2,
-      top: top + gridSpacing / 2,
-      width: width,
-      height: height,
+      // 为 expandOffset 进行真正的占用边界扩张（向外延展圆角半径）
+      left: left + gridSpacing / 2 - expandOffset,
+      top: top + gridSpacing / 2 - expandOffset,
+      width: width + expandOffset * 2,
+      height: height + expandOffset * 2,
       child: FloatingWrapper(
         isFloating: isEditMode && !isSelected,
-        child: GestureDetector(
-          onTap: () {
-            if (isEditMode) setState(() => selectedTileId = tile.instanceId);
-          },
-          onLongPressStart: (details) {
-            final RenderBox box = context.findRenderObject() as RenderBox;
-            _onDragStart(tile, box.globalToLocal(details.globalPosition), targetLeft, targetTop);
-          },
-          onLongPressMoveUpdate: (details) {
-            final RenderBox box = context.findRenderObject() as RenderBox;
-            _onDragUpdate(tile, box.globalToLocal(details.globalPosition), cellSize);
-          },
-          onLongPressEnd: (details) => _onDragEnd(tile, cellSize),
-          onPanStart: (isEditMode && isSelected)
-              ? (details) {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  _onDragStart(
-                      tile, box.globalToLocal(details.globalPosition), targetLeft, targetTop);
-                }
-              : null,
-          onPanUpdate: (isEditMode && isSelected)
-              ? (details) {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  _onDragUpdate(tile, box.globalToLocal(details.globalPosition), cellSize);
-                }
-              : null,
-          onPanEnd: (isEditMode && isSelected)
-              ? (details) => _onDragEnd(tile, cellSize)
-              : null,
-          child: AnimatedScale(
-            duration: const Duration(milliseconds: 200),
-            scale: targetScale,
-            curve: Curves.easeOutCubic,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0.0, end: targetZ),
-              duration: Duration(milliseconds: isActuallyDragging ? 0 : 200),
-              curve: Curves.easeOut,
-              builder: (context, zValue, child) {
-                Matrix4 currentTransform = Matrix4.identity();
-                if (zValue != 0) {
-                  currentTransform.rotateX(0.000000001);
-                }
-                currentTransform.translate(0.0, 0.0, zValue);
-
-                return Transform(
-                  alignment: FractionalOffset.center,
-                  transform: currentTransform,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: targetOpacity,
-                    child: 
-                    //当if (!isEditMode)的时候tile不再接收点击事件
-
-                    
-                        AbsorbPointer(
-                          absorbing: isEditMode,
-                          child: Tile(
-                      child: tile.app.getTileWidget(tile.currentSize),
-                      onTap: () {
-                         
-                          metroPagePush(
-                            context,
-                            MetroPageRoute(
-                              builder: (context) {
-                                return tile.app.page;
-                              },
-                            ),
-                            //提供一种便利的方法，可以将范型参数传递给onDidPushNext，主要设计目的是为了方便动画传参
-                            //例如：Windows Phone中，被点击的Tile往往是最后一个飞出的，可能需要把Tile的index传递过去，然后在onDidPushNext中处理动画
-                            //dataToPass: index,
-                          );
-                        
-                      },
-                    ),
-                        ),
-                  ),
-                );
-              },
-            ),
-          ),
+        child: 
+        
+        AnimatedScale(
+          duration: const Duration(milliseconds: 200),
+          scale: targetScale,
+          curve: Curves.easeOutCubic,
+          child: tileContent,
         ),
       ),
     );
@@ -1566,6 +1640,67 @@ class _FloatingWrapperState extends State<FloatingWrapper> {
       curve: Curves.easeInOutSine,
       transform: Matrix4.translationValues(_dx, _dy, 0),
       child: widget.child,
+    );
+  }
+}
+
+class _EditButton extends StatefulWidget {
+  final Widget icon;
+  final VoidCallback onPressed;
+
+  const _EditButton({
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  State<_EditButton> createState() => _EditButtonState();
+}
+
+class _EditButtonState extends State<_EditButton> {
+  bool _isTouch = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double circleSize = 48.125 * 0.8;
+    return Semantics(
+      button: true,
+      child: Tile(
+        onTap: widget.onPressed,
+        onTouch: (isTouch) {
+          setState(() {
+            _isTouch = isTouch;
+          });
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isTouch
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.black, // 黑色底，防止透明导致透出磁贴内容
+                border: Border.all(
+                  color: Colors.white,
+                  width: 5 * 0.625 * 0.8,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: IconTheme(
+                data: const IconThemeData(
+                  color: Colors.white,
+                  size: 24,
+                ),
+                child: widget.icon,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
