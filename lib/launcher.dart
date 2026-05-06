@@ -589,6 +589,18 @@ class LauncherSnapPhysics extends ScrollPhysics {
   }
 }
 
+class TileOpacity extends InheritedWidget {
+  final double opacity;
+  const TileOpacity({super.key, required this.opacity, required super.child});
+
+  static double of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<TileOpacity>()?.opacity ?? 1.0;
+  }
+
+  @override
+  bool updateShouldNotify(TileOpacity oldWidget) => opacity != oldWidget.opacity;
+}
+
 //磁贴大小枚举
 enum TileSize {
   small, // 1x1 小
@@ -1203,7 +1215,10 @@ class _StartMenuState extends State<StartMenu> {
           top: expandOffset,
           right: expandOffset,
           bottom: expandOffset,
-          child: tileGestureContent,
+          child: TileOpacity(
+            opacity: targetOpacity,
+            child: tileGestureContent,
+          ),
         ),
         if (isEditMode && isSelected && !isActuallyDragging) ...[
           // Top right: unpin
@@ -1288,9 +1303,7 @@ class _StartMenuState extends State<StartMenu> {
       height: height + expandOffset * 2,
       child: FloatingWrapper(
         isFloating: isEditMode && !isSelected,
-        child: 
-        
-        AnimatedScale(
+        child: AnimatedScale(
           duration: const Duration(milliseconds: 200),
           scale: targetScale,
           curve: Curves.easeOutCubic,
@@ -1434,11 +1447,13 @@ class _LiveTileState extends State<LiveTile>
                 child: Transform(
                   transform: transform,
                   alignment: Alignment.center,
-                  child: Container(
-                    color: Theme.of(context).colorScheme.primary,
-                    child: Stack(
-                      children: [
-                        widget.children[index],
+                  child: Opacity(
+                    opacity: TileOpacity.of(context),
+                    child: Container(
+                      color: Theme.of(context).colorScheme.primary,
+                      child: Stack(
+                        children: [
+                          widget.children[index],
                         if (widget.name != null)
                           Positioned(
                             left: 10,
@@ -1455,9 +1470,10 @@ class _LiveTileState extends State<LiveTile>
                     ),
                   ),
                 ),
-              );
-            }),
-          ]);
+              ),
+            );
+          }),
+        ]);
         },
       ),
     );
@@ -1532,12 +1548,15 @@ class _MetroAppTileState extends State<MetroAppTile>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: widget.backgroundColor ?? Theme.of(context).colorScheme.primary,
-      child:
-          // 图标与数字组合：居中
-          Center(
-        child: Row(
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: TileOpacity.of(context),
+      child: Container(
+        color: widget.backgroundColor ?? Theme.of(context).colorScheme.primary,
+        child:
+            // 图标与数字组合：居中
+            Center(
+          child: Row(
           //mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1569,7 +1588,7 @@ class _MetroAppTileState extends State<MetroAppTile>
         ),
       ),
       // 标题：左下角
-    );
+    ));
   }
 }
 
