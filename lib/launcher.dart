@@ -791,6 +791,7 @@ class _StartMenuState extends State<StartMenu> {
 
   // --- 引擎状态 ---
   List<TileModel>? originalItems;
+  List<TileModel>? _baseLayoutSnapshot; // 记住进入编辑状态时的初始布局快照
   Timer? hoverTimer;
   int lastHoverX = -1;
   int lastHoverY = -1;
@@ -801,6 +802,7 @@ class _StartMenuState extends State<StartMenu> {
         isEditMode = false;
         selectedTileId = null;
         draggingTileId = null;
+        _baseLayoutSnapshot = null;
       });
       if (widget.onEditModeChanged != null) {
         widget.onEditModeChanged!(false);
@@ -1027,6 +1029,12 @@ class _StartMenuState extends State<StartMenu> {
         }
       }
       isEditMode = true;
+
+      // 如果选中了不同的磁贴，马上拍一张布局快照
+      if (selectedTileId != tile.instanceId) {
+        _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
+      }
+
       selectedTileId = tile.instanceId;
       draggingTileId = tile.instanceId;
       initialDragOffset = Offset(left, top);
@@ -1091,6 +1099,8 @@ class _StartMenuState extends State<StartMenu> {
         // 强制最后执行一次确保落地位置正确
         _updatePreview(finalX, finalY);
         _finalizeLayout();
+        // 拖拽落地后，布局发生了实质性改变，更新快照！
+        _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
       } else {
         // 如果没有突破死区，恢复快照
         if (originalItems != null) {
@@ -1190,7 +1200,13 @@ class _StartMenuState extends State<StartMenu> {
     // 主要的拖拽手势和磁贴本身
     Widget tileGestureContent = GestureDetector(
       onTap: () {
-        if (isEditMode) setState(() => selectedTileId = tile.instanceId);
+        if (isEditMode && selectedTileId != tile.instanceId) {
+          setState(() {
+            selectedTileId = tile.instanceId;
+            // 切换选中的磁贴时，记录当前稳定布局作为快照
+            _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
+          });
+        }
       },
       onLongPressStart: (details) {
         final RenderBox box = context.findRenderObject() as RenderBox;
@@ -1270,6 +1286,9 @@ class _StartMenuState extends State<StartMenu> {
                   setState(() {
                     tiles.removeWhere((t) => t.instanceId == tile.instanceId);
                     _finalizeLayout();
+
+                    // 移除磁贴后布局永久改变，更新快照
+                    _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
                     if (tiles.isEmpty) {
                       exitEditMode();
                     } else {
@@ -1296,7 +1315,7 @@ class _StartMenuState extends State<StartMenu> {
                 ),
                 onPressed: () {
                   setState(() {
-                    // 1. 标记当前磁贴正在调整大小，并在下一帧渲染后清除该标记
+                    // 1. 标记当前磁贴正在调整大小关闭过渡动画
                     _resizingTileId = tile.instanceId;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
@@ -1306,26 +1325,49 @@ class _StartMenuState extends State<StartMenu> {
                       }
                     });
 
-                    // 2. 修改切换顺序：中 -> 小 -> 大 -> 中
+                    // 🌟 核心修复：先根据【当前屏幕上真实的尺寸】计算出下一步该变多大
+                    TileSize nextSize;
                     if (tile.currentSize == TileSize.medium) {
-                      tile.currentSize = TileSize.small;
+                      nextSize = TileSize.small;
                     } else if (tile.currentSize == TileSize.small) {
                       if (tile.app.wideTile != null) {
-                        tile.currentSize = TileSize.wide;
+                        nextSize = TileSize.wide;
                       } else {
-                        // 如果没有提供宽磁贴，降级回中磁贴
-                        tile.currentSize = TileSize.medium;
+                        nextSize = TileSize.medium;
                       }
                     } else {
-                      // 当前是宽磁贴
-                      tile.currentSize = TileSize.medium;
+                      nextSize = TileSize.medium;
                     }
 
-                    // 强制挤推周围元素处理新大小的碰撞
-                    draggingTileId = tile.instanceId;
-                    originalItems = tiles.map((e) => e.clone()).toList();
-                    _updatePreview(tile.gridX, tile.gridY);
+                    // 🌟 核心：恢复初始布局快照 (清空之前所有的挤压变形)
+                    if (_baseLayoutSnapshot != null) {
+                      tiles =
+                          _baseLayoutSnapshot!.map((e) => e.clone()).toList();
+                    } else {
+                      _baseLayoutSnapshot =
+                          tiles.map((e) => e.clone()).toList();
+                    }
+
+                    // 3. 获取恢复后列表中的“真身”
+                    TileModel activeTile = tiles
+                        .firstWhere((t) => t.instanceId == tile.instanceId);
+
+                    // 🌟 4. 把刚刚算好的下一步尺寸，强行赋予给快照中的真身
+                    activeTile.currentSize = nextSize;
+
+                    // 5. 边界夹逼：防止变宽后掉出右侧边界，强制往左靠拢
+                    activeTile.gridX = activeTile.gridX
+                        .clamp(0, crossAxisCount - activeTile.widthCells);
+
+                    // 6. 推演排版：让引擎以为这是拖拽过来的，智能挤开其他磁贴
+                    draggingTileId = activeTile.instanceId;
+                    originalItems = tiles
+                        .map((e) => e.clone())
+                        .toList(); // 以当前恢复+变形后的状态作为推演基础
+
+                    _updatePreview(activeTile.gridX, activeTile.gridY);
                     _finalizeLayout();
+
                     draggingTileId = null;
                     originalItems = null;
                   });
@@ -1341,21 +1383,26 @@ class _StartMenuState extends State<StartMenu> {
     final bool isResizing = tile.instanceId == _resizingTileId;
 
     // 🌟 核心：使用 AnimatedPositioned 实现布局改变时的自动顺滑挤推
-return AnimatedPositioned(
+    return AnimatedPositioned(
       key: tile.key,
-      // 拖拽时 或 调整大小时 立即响应(0ms)，只有周围排版推挤时才给300ms过渡
-      duration: Duration(milliseconds: (isActuallyDragging || isResizing) ? 0 : 300), 
+      // 只有手指拖拽时立刻响应(0ms)。其他的任何坐标改变（包括自己变大时的防越界左移，以及被别人推开）都恢复为 300ms 平滑过渡
+      duration: Duration(milliseconds: isActuallyDragging ? 0 : 300),
       curve: Curves.easeOutCubic,
-      // 为 expandOffset 进行真正的占用边界扩张（向外延展圆角半径）
+      // 动画仅掌管左上角坐标
       left: left + gridSpacing / 2 - expandOffset,
       top: top + gridSpacing / 2 - expandOffset,
-      width: width + expandOffset * 2,
-      height: height + expandOffset * 2,
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 200),
-        scale: targetScale,
-        curve: Curves.easeOutCubic,
-        child: tileContent,
+
+      // 🚨 注意：我们去掉了这里的 width 和 height，让 AnimatedPositioned 自动包裹子组件。
+      // 将宽高的职责交给内部的 SizedBox，SizedBox 没有补间动画，因此形变会【瞬间】完成！
+      child: SizedBox(
+        width: width + expandOffset * 2,
+        height: height + expandOffset * 2,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 200),
+          scale: targetScale,
+          curve: Curves.easeOutCubic,
+          child: tileContent,
+        ),
       ),
     );
   }
