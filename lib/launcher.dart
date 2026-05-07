@@ -43,7 +43,7 @@ class _LauncherPageState extends State<LauncherPage>
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
           page: const Splashscreen(),
-          smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
+          smallTile: const MetroAppTile(icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
           mediumTile: LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
@@ -65,13 +65,20 @@ class _LauncherPageState extends State<LauncherPage>
               ),
             ],
           ),
-          wideTile: const Row(
+          wideTile: LiveTile(
+                        size: LiveTileSize.wide,
+            flipStyle: FlipStyle.elastic,
+            name: const Text('Panorama'),
+            children:[
+              MetroAppTile(icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+            Row(
             // 宽磁贴可以放更多信息
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               Icon(Icons.wb_sunny, color: Colors.white, size: 40),
               Text('新北市板桥区\n晴天 24°C', style: TextStyle(color: Colors.white)),
             ],
+          ),]
           ),
         ),
         App(
@@ -80,7 +87,7 @@ class _LauncherPageState extends State<LauncherPage>
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
           page: const Splashscreen(),
-          smallTile: const Icon(Icons.wb_sunny, color: Colors.white, size: 24),
+          smallTile: const MetroAppTile(icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
           mediumTile: LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
@@ -589,16 +596,34 @@ class LauncherSnapPhysics extends ScrollPhysics {
   }
 }
 
-class TileOpacity extends InheritedWidget {
-  final double opacity;
-  const TileOpacity({super.key, required this.opacity, required super.child});
+class MetroEditState extends InheritedWidget {
+  final bool isEditMode;
+  final bool isSelected;
+  final bool isActuallyDragging;
 
-  static double of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<TileOpacity>()?.opacity ?? 1.0;
+  const MetroEditState({
+    super.key,
+    required this.isEditMode,
+    required this.isSelected,
+    required this.isActuallyDragging,
+    required super.child,
+  });
+
+  double get targetOpacity =>
+      isEditMode ? (isSelected ? (isActuallyDragging ? 0.8 : 1.0) : 0.5) : 1.0;
+
+  bool get isFloating => isEditMode && !isSelected;
+
+  static MetroEditState? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<MetroEditState>();
   }
 
   @override
-  bool updateShouldNotify(TileOpacity oldWidget) => opacity != oldWidget.opacity;
+  bool updateShouldNotify(MetroEditState oldWidget) {
+    return isEditMode != oldWidget.isEditMode ||
+        isSelected != oldWidget.isSelected ||
+        isActuallyDragging != oldWidget.isActuallyDragging;
+  }
 }
 
 //磁贴大小枚举
@@ -1088,7 +1113,7 @@ class _StartMenuState extends State<StartMenu> {
         scale: isEditMode ? 0.9 : 1.0,
         curve: Curves.easeOutCubic,
         child: Container(
-          color: Colors.yellow,
+          //color: Colors.yellow,
           width: double.infinity,
           height: double.infinity,
           child: LayoutBuilder(
@@ -1215,8 +1240,10 @@ class _StartMenuState extends State<StartMenu> {
           top: expandOffset,
           right: expandOffset,
           bottom: expandOffset,
-          child: TileOpacity(
-            opacity: targetOpacity,
+          child: MetroEditState(
+            isEditMode: isEditMode,
+            isSelected: isSelected,
+            isActuallyDragging: isActuallyDragging,
             child: tileGestureContent,
           ),
         ),
@@ -1301,14 +1328,11 @@ class _StartMenuState extends State<StartMenu> {
       top: top + gridSpacing / 2 - expandOffset,
       width: width + expandOffset * 2,
       height: height + expandOffset * 2,
-      child: FloatingWrapper(
-        isFloating: isEditMode && !isSelected,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 200),
-          scale: targetScale,
-          curve: Curves.easeOutCubic,
-          child: tileContent,
-        ),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 200),
+        scale: targetScale,
+        curve: Curves.easeOutCubic,
+        child: tileContent,
       ),
     );
   }
@@ -1397,7 +1421,6 @@ class _LiveTileState extends State<LiveTile>
       _setupAnimation();
     }
   }
-
   @override
   Widget build(BuildContext context) {
     double width;
@@ -1418,63 +1441,76 @@ class _LiveTileState extends State<LiveTile>
         break;
     }
 
-    return SizedBox(
-      width: width,
-      height: height,
-      child: AnimatedBuilder(
-        animation: _animation,
-        builder: (context, child) {
-          final double rotationValue = _animation.value * math.pi;
-          final bool showBack = rotationValue > math.pi / 2;
-          final int nextIndex = (_currentIndex + 1) % widget.children.length;
+    final editState = MetroEditState.of(context);
+    final opacity = editState?.targetOpacity ?? 1.0;
+    final isFloating = editState?.isFloating ?? false;
 
-          return Stack(fit: StackFit.expand, children: [
-            ...List.generate(widget.children.length, (index) {
-              bool isVisibleFace = false;
-              Matrix4 transform = Matrix4.identity();
+    return FloatingWrapper(
+      isFloating: isFloating,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final double rotationValue = _animation.value * math.pi;
+            final bool showBack = rotationValue > math.pi / 2;
+            final int nextIndex = (_currentIndex + 1) % widget.children.length;
 
-              if (index == _currentIndex && !showBack) {
-                isVisibleFace = true;
-                transform.rotateX(rotationValue);
-              } else if (index == nextIndex && showBack) {
-                isVisibleFace = true;
-                transform.rotateX(rotationValue);
-                transform.rotateX(math.pi);
-              }
+            return Stack(fit: StackFit.expand, children: [
+              ...List.generate(widget.children.length, (index) {
+                bool isVisibleFace = false;
+                Matrix4 transform = Matrix4.identity();
 
-              return Offstage(
-                offstage: !isVisibleFace,
-                child: Transform(
-                  transform: transform,
-                  alignment: Alignment.center,
-                  child: Opacity(
-                    opacity: TileOpacity.of(context),
-                    child: Container(
-                      color: Theme.of(context).colorScheme.primary,
-                      child: Stack(
-                        children: [
-                          widget.children[index],
-                        if (widget.name != null)
-                          Positioned(
-                            left: 10,
-                            bottom: 6,
-                            child: DefaultTextStyle.merge(
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
+                if (index == _currentIndex && !showBack) {
+                  isVisibleFace = true;
+                  transform.rotateX(rotationValue);
+                } else if (index == nextIndex && showBack) {
+                  isVisibleFace = true;
+                  transform.rotateX(rotationValue);
+                  transform.rotateX(math.pi);
+                }
+
+                return Offstage(
+                  offstage: !isVisibleFace,
+                  child: Transform(
+                    transform: transform,
+                    alignment: Alignment.center,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: opacity,
+                      child: Container(
+                        color: Theme.of(context).colorScheme.primary,
+                        child: MetroEditState(
+                          isEditMode: false,
+                          isSelected: false,
+                          isActuallyDragging: false,
+                          child: Stack(
+                            children: [
+                              widget.children[index],
+                            if (widget.name != null)
+                              Positioned(
+                              left: 10,
+                              bottom: 6,
+                              child: DefaultTextStyle.merge(
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                                child: widget.name!,
                               ),
-                              child: widget.name!,
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }),
-        ]);
-        },
+              );
+            }),
+          ]);
+          },
+        ),
       ),
     );
   }
@@ -1548,47 +1584,54 @@ class _MetroAppTileState extends State<MetroAppTile>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 200),
-      opacity: TileOpacity.of(context),
-      child: Container(
-        color: widget.backgroundColor ?? Theme.of(context).colorScheme.primary,
-        child:
-            // 图标与数字组合：居中
-            Center(
-          child: Row(
-          //mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              child: widget.icon,
-            ),
-            if (_displayCount != null && _displayCount! > 0) ...[
-              const SizedBox(width: 8),
-              AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..rotateX(_rotationAnimation.value * math.pi),
-                    child: Text(
-                      '$_displayCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                  );
-                },
+    final editState = MetroEditState.of(context);
+    final opacity = editState?.targetOpacity ?? 1.0;
+    final isFloating = editState?.isFloating ?? false;
+
+    return FloatingWrapper(
+      isFloating: isFloating,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: opacity,
+        child: Container(
+          color: widget.backgroundColor ?? Theme.of(context).colorScheme.primary,
+          child:
+              // 图标与数字组合：居中
+              Center(
+            child: Row(
+            //mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                child: widget.icon,
               ),
+              if (_displayCount != null && _displayCount! > 0) ...[
+                const SizedBox(width: 8),
+                AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..rotateX(_rotationAnimation.value * math.pi),
+                      child: Text(
+                        '$_displayCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
-      // 标题：左下角
-    ));
+        // 标题：左下角
+      )),
+    );
   }
 }
 
