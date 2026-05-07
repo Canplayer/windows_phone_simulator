@@ -43,7 +43,10 @@ class _LauncherPageState extends State<LauncherPage>
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
           page: const Splashscreen(),
-          smallTile: const MetroAppTile(icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+          smallTile: const MetroAppTile(
+            icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24),
+            count: 2,
+          ),
           mediumTile: LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
@@ -66,20 +69,22 @@ class _LauncherPageState extends State<LauncherPage>
             ],
           ),
           wideTile: LiveTile(
-                        size: LiveTileSize.wide,
-            flipStyle: FlipStyle.elastic,
-            name: const Text('Panorama'),
-            children:[
-              MetroAppTile(icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-            Row(
-            // 宽磁贴可以放更多信息
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Icon(Icons.wb_sunny, color: Colors.white, size: 40),
-              Text('新北市板桥区\n晴天 24°C', style: TextStyle(color: Colors.white)),
-            ],
-          ),]
-          ),
+              size: LiveTileSize.wide,
+              flipStyle: FlipStyle.elastic,
+              name: const Text('Panorama'),
+              children: [
+                MetroAppTile(
+                    icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+                Row(
+                  // 宽磁贴可以放更多信息
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Icon(Icons.wb_sunny, color: Colors.white, size: 40),
+                    Text('新北市板桥区\n晴天 24°C',
+                        style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ]),
         ),
         App(
           id: 'com.ms.weather2',
@@ -87,7 +92,8 @@ class _LauncherPageState extends State<LauncherPage>
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
           page: const Splashscreen(),
-          smallTile: const MetroAppTile(icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+          smallTile: const MetroAppTile(
+              icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
           mediumTile: LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
@@ -778,6 +784,7 @@ class _StartMenuState extends State<StartMenu> {
   bool isEditMode = false;
   String? selectedTileId;
   String? draggingTileId;
+  String? _resizingTileId; //用于记录正在调整大小的磁贴
   Offset? initialDragOffset;
   Offset? initialTouchPosition;
   bool hasMetDragThreshold = false;
@@ -1289,16 +1296,29 @@ class _StartMenuState extends State<StartMenu> {
                 ),
                 onPressed: () {
                   setState(() {
-                    if (tile.currentSize == TileSize.small) {
-                      tile.currentSize = TileSize.medium;
-                    } else if (tile.currentSize == TileSize.medium) {
+                    // 1. 标记当前磁贴正在调整大小，并在下一帧渲染后清除该标记
+                    _resizingTileId = tile.instanceId;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _resizingTileId = null;
+                        });
+                      }
+                    });
+
+                    // 2. 修改切换顺序：中 -> 小 -> 大 -> 中
+                    if (tile.currentSize == TileSize.medium) {
+                      tile.currentSize = TileSize.small;
+                    } else if (tile.currentSize == TileSize.small) {
                       if (tile.app.wideTile != null) {
                         tile.currentSize = TileSize.wide;
                       } else {
-                        tile.currentSize = TileSize.small;
+                        // 如果没有提供宽磁贴，降级回中磁贴
+                        tile.currentSize = TileSize.medium;
                       }
                     } else {
-                      tile.currentSize = TileSize.small;
+                      // 当前是宽磁贴
+                      tile.currentSize = TileSize.medium;
                     }
 
                     // 强制挤推周围元素处理新大小的碰撞
@@ -1317,11 +1337,14 @@ class _StartMenuState extends State<StartMenu> {
       ],
     );
 
+// 判断当前磁贴是否正在被调整大小
+    final bool isResizing = tile.instanceId == _resizingTileId;
+
     // 🌟 核心：使用 AnimatedPositioned 实现布局改变时的自动顺滑挤推
-    return AnimatedPositioned(
+return AnimatedPositioned(
       key: tile.key,
-      duration: Duration(
-          milliseconds: isActuallyDragging ? 0 : 300), // 拖拽时立即响应，排版推挤时300ms过渡
+      // 拖拽时 或 调整大小时 立即响应(0ms)，只有周围排版推挤时才给300ms过渡
+      duration: Duration(milliseconds: (isActuallyDragging || isResizing) ? 0 : 300), 
       curve: Curves.easeOutCubic,
       // 为 expandOffset 进行真正的占用边界扩张（向外延展圆角半径）
       left: left + gridSpacing / 2 - expandOffset,
@@ -1338,11 +1361,14 @@ class _StartMenuState extends State<StartMenu> {
   }
 }
 
-//动态磁贴
+//动态磁贴大小预设
 enum LiveTileSize { small, medium, wide }
 
+//动态磁贴翻转方式
 enum FlipStyle { normal, elastic }
 
+//动态磁贴组件
+// 这个组件会在内部自动循环显示提供的子组件列表
 class LiveTile extends StatefulWidget {
   final List<Widget> children;
   final LiveTileSize size;
@@ -1421,6 +1447,7 @@ class _LiveTileState extends State<LiveTile>
       _setupAnimation();
     }
   }
+
   @override
   Widget build(BuildContext context) {
     double width;
@@ -1481,34 +1508,29 @@ class _LiveTileState extends State<LiveTile>
                       opacity: opacity,
                       child: Container(
                         color: Theme.of(context).colorScheme.primary,
-                        child: MetroEditState(
-                          isEditMode: false,
-                          isSelected: false,
-                          isActuallyDragging: false,
-                          child: Stack(
-                            children: [
-                              widget.children[index],
+                        child: Stack(
+                          children: [
+                            widget.children[index],
                             if (widget.name != null)
                               Positioned(
-                              left: 10,
-                              bottom: 6,
-                              child: DefaultTextStyle.merge(
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                                left: 10,
+                                bottom: 6,
+                                child: DefaultTextStyle.merge(
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                  child: widget.name!,
                                 ),
-                                child: widget.name!,
                               ),
-                            ),
-                        ],
-                      ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ]);
+                );
+              }),
+            ]);
           },
         ),
       ),
@@ -1584,53 +1606,43 @@ class _MetroAppTileState extends State<MetroAppTile>
 
   @override
   Widget build(BuildContext context) {
-    final editState = MetroEditState.of(context);
-    final opacity = editState?.targetOpacity ?? 1.0;
-    final isFloating = editState?.isFloating ?? false;
-
-    return FloatingWrapper(
-      isFloating: isFloating,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: opacity,
-        child: Container(
-          color: widget.backgroundColor ?? Theme.of(context).colorScheme.primary,
-          child:
-              // 图标与数字组合：居中
-              Center(
-            child: Row(
-            //mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                child: widget.icon,
-              ),
-              if (_displayCount != null && _displayCount! > 0) ...[
-                const SizedBox(width: 8),
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()
-                        ..rotateX(_rotationAnimation.value * math.pi),
-                      child: Text(
-                        '$_displayCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 48,
-                          fontWeight: FontWeight.w300,
-                        ),
+    return Container(
+      color: widget.backgroundColor ?? Theme.of(context).colorScheme.primary,
+      child:
+          // 图标与数字组合：居中
+          Center(
+        child: Row(
+          //mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              child: widget.icon,
+            ),
+            if (_displayCount != null && _displayCount! > 0) ...[
+              const SizedBox(width: 8),
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..rotateX(_rotationAnimation.value * math.pi),
+                    child: Text(
+                      '$_displayCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 48,
+                        fontWeight: FontWeight.w300,
                       ),
-                    );
-                  },
-                ),
-              ],
+                    ),
+                  );
+                },
+              ),
             ],
-          ),
+          ],
         ),
-        // 标题：左下角
-      )),
+      ),
+      // 标题：左下角
     );
   }
 }
