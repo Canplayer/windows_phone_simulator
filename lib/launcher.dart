@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:math';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:metro_ui/animations.dart';
 import 'package:metro_ui/metro_page_push.dart';
 import 'package:metro_ui/page.dart';
@@ -761,6 +762,11 @@ class _StartMenuState extends State<StartMenu> {
 
   late List<TileModel> tiles;
 
+  // 🌟 新增：纵向滚动控制器
+  final ScrollController _scrollController = ScrollController();
+  // 🌟 新增：作为统一坐标系的画布 Key（解决滚动时获取坐标位置错乱的问题）
+  final GlobalKey _stackKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -770,7 +776,6 @@ class _StartMenuState extends State<StartMenu> {
   @override
   void didUpdateWidget(StartMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Find new tiles added in initialTiles
     for (var newTile in widget.initialTiles) {
       if (!tiles.any((t) => t.instanceId == newTile.instanceId)) {
         setState(() {
@@ -780,18 +785,24 @@ class _StartMenuState extends State<StartMenu> {
     }
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose(); // 🌟 记得释放控制器
+    hoverTimer?.cancel();
+    super.dispose();
+  }
+
   // --- UI状态 ---
   bool isEditMode = false;
   String? selectedTileId;
   String? draggingTileId;
-  String? _resizingTileId; //用于记录正在调整大小的磁贴
   Offset? initialDragOffset;
   Offset? initialTouchPosition;
   bool hasMetDragThreshold = false;
 
   // --- 引擎状态 ---
   List<TileModel>? originalItems;
-  List<TileModel>? _baseLayoutSnapshot; // 记住进入编辑状态时的初始布局快照
+  List<TileModel>? _baseLayoutSnapshot;
   Timer? hoverTimer;
   int lastHoverX = -1;
   int lastHoverY = -1;
@@ -810,18 +821,45 @@ class _StartMenuState extends State<StartMenu> {
     }
   }
 
+  // 🌟 新增：边缘越界检测与自动滚动对齐
+  void _ensureTileVisible(TileModel tile, double cellSize) {
+    if (!_scrollController.hasClients) return;
+
+    final double topEdge = tile.gridY * cellSize;
+    final double bottomEdge = (tile.gridY + tile.heightCells) * cellSize;
+    final double currentOffset = _scrollController.offset;
+    final double viewportHeight = _scrollController.position.viewportDimension;
+
+    // 留出一点边距，看着更舒服
+    const double padding = 10.0;
+
+    if (topEdge < currentOffset) {
+      // 如果磁贴顶部超出了上方视口，向上滚动
+      _scrollController.animateTo(
+        math.max(0.0, topEdge - padding),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    } else if (bottomEdge > currentOffset + viewportHeight) {
+      // 如果磁贴底部超出了下方视口，向下滚动
+      _scrollController.animateTo(
+        bottomEdge - viewportHeight + padding,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   // --- 🌟 完美移植：网格碰撞推挤引擎 ---
   void _updatePreview(int targetX, int targetY) {
     if (originalItems == null || draggingTileId == null) return;
 
-// --- 🌟 核心修复 1：在覆盖前，先提取当前拖拽砖块的实时像素坐标 ---
     Offset? currentPixelOffset;
     try {
       currentPixelOffset = tiles
           .firstWhere((e) => e.instanceId == draggingTileId)
           .dragPixelOffset;
     } catch (e) {}
-    // -------------------------------------------------------------
 
     List<TileModel> nextLayout = originalItems!.map((e) => e.clone()).toList();
     TileModel targetItem =
@@ -829,10 +867,7 @@ class _StartMenuState extends State<StartMenu> {
 
     targetItem.gridX = targetX;
     targetItem.gridY = targetY;
-
-    // --- 🌟 核心修复 2：将实时坐标强行注入给新的克隆体，防止丢失 ---
     targetItem.dragPixelOffset = currentPixelOffset;
-    // -------------------------------------------------------------
 
     List<TileModel> directCollisions = nextLayout
         .where((item) =>
@@ -1020,8 +1055,9 @@ class _StartMenuState extends State<StartMenu> {
   }
 
   // --- 滑动核心接管 ---
-  void _onDragStart(
-      TileModel tile, Offset touchPosition, double left, double top) {
+  void _onDragStart(TileModel tile, Offset touchPosition, double left,
+      double top, double cellSize) {
+    // 🌟 传入 cellSize
     setState(() {
       if (!isEditMode) {
         if (widget.onEditModeChanged != null) {
@@ -1030,7 +1066,6 @@ class _StartMenuState extends State<StartMenu> {
       }
       isEditMode = true;
 
-      // 如果选中了不同的磁贴，马上拍一张布局快照
       if (selectedTileId != tile.instanceId) {
         _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
       }
@@ -1042,9 +1077,11 @@ class _StartMenuState extends State<StartMenu> {
       hasMetDragThreshold = false;
       tile.dragPixelOffset = initialDragOffset;
 
-      // 🌟 保存布局快照
       originalItems = tiles.map((e) => e.clone()).toList();
     });
+
+    // 🌟 长按激活时也保证它在视口内
+    _ensureTileVisible(tile, cellSize);
   }
 
   void _onDragUpdate(
@@ -1055,23 +1092,19 @@ class _StartMenuState extends State<StartMenu> {
       final distance = (currentTouchPosition - initialTouchPosition!).distance;
 
       setState(() {
-        //拖拽距离达到一定程度才允许图标拖拽
         if (!hasMetDragThreshold && distance > 70.0) {
           hasMetDragThreshold = true;
         }
         if (hasMetDragThreshold) {
-          // 更新物理像素用于渲染
           tile.dragPixelOffset = initialDragOffset! +
               (currentTouchPosition - initialTouchPosition!);
 
-          // 🌟 结合你的基于中心点的平滑吸附计算
           int newGridX = (tile.dragPixelOffset!.dx / cellSize).round();
           int newGridY = (tile.dragPixelOffset!.dy / cellSize).round();
 
           newGridX = newGridX.clamp(0, crossAxisCount - tile.widthCells);
           newGridY = newGridY >= 0 ? newGridY : 0;
 
-          // 🌟 Hover防抖判断
           if (newGridX != lastHoverX || newGridY != lastHoverY) {
             lastHoverX = newGridX;
             lastHoverY = newGridY;
@@ -1096,19 +1129,16 @@ class _StartMenuState extends State<StartMenu> {
         finalX = finalX.clamp(0, crossAxisCount - tile.widthCells);
         finalY = finalY >= 0 ? finalY : 0;
 
-        // 强制最后执行一次确保落地位置正确
         _updatePreview(finalX, finalY);
         _finalizeLayout();
-        // 拖拽落地后，布局发生了实质性改变，更新快照！
+
         _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
       } else {
-        // 如果没有突破死区，恢复快照
         if (originalItems != null) {
           tiles = originalItems!;
         }
       }
 
-      // 清理引擎状态
       draggingTileId = null;
       tile.dragPixelOffset = null;
       initialDragOffset = null;
@@ -1129,34 +1159,71 @@ class _StartMenuState extends State<StartMenu> {
         duration: const Duration(milliseconds: 200),
         scale: isEditMode ? 0.9 : 1.0,
         curve: Curves.easeOutCubic,
-        child: Container(
-          //color: Colors.yellow,
-          width: double.infinity,
-          height: double.infinity,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double cellSize = constraints.maxWidth / crossAxisCount;
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double cellSize = constraints.maxWidth / crossAxisCount;
 
-              List<Widget> normalTiles = [];
-              Widget? activeTileWidget;
-
-              for (var tile in tiles) {
-                Widget tileWidget = _buildTile(tile, cellSize, context);
-                if (tile.instanceId == selectedTileId) {
-                  activeTileWidget = tileWidget;
-                } else {
-                  normalTiles.add(tileWidget);
-                }
+            // 🌟 动态计算整个滚动内容的实际高度
+            int maxGridY = 0;
+            for (var t in tiles) {
+              if (t.gridY + t.heightCells > maxGridY) {
+                maxGridY = t.gridY + t.heightCells;
               }
+            }
+            // 确保高度至少撑满屏幕，且底部留出空白缓冲区
+            final double stackHeight = math.max(
+              constraints.maxHeight,
+              (maxGridY * cellSize) + 200.0,
+            );
 
-              if (activeTileWidget != null) normalTiles.add(activeTileWidget);
+            List<Widget> normalTiles = [];
+            Widget? activeTileWidget;
 
-              return Stack(
+            for (var tile in tiles) {
+              Widget tileWidget = _buildTile(tile, cellSize, context);
+              if (tile.instanceId == selectedTileId) {
+                activeTileWidget = tileWidget;
+              } else {
+                normalTiles.add(tileWidget);
+              }
+            }
+
+            if (activeTileWidget != null) normalTiles.add(activeTileWidget);
+
+            // 🌟 核心：滚动时取消选中模式的监听器
+            return NotificationListener<UserScrollNotification>(
+              onNotification: (notification) {
+                // 如果是用户手指主导的滚动行为
+                if (notification.direction != ScrollDirection.idle) {
+                  // 如果处于编辑模式且有选中元素，但是不在拖拽挪位过程中
+                  if (isEditMode &&
+                      selectedTileId != null &&
+                      draggingTileId == null) {
+                    setState(() {
+                      selectedTileId = null;
+                    });
+                  }
+                }
+                return false; // 不拦截滚动事件，继续向下冒泡
+              },
+              // 🌟 包裹纵向滚动视图
+              child: SingleChildScrollView(
                 clipBehavior: Clip.none,
-                children: normalTiles,
-              );
-            },
-          ),
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                child: Container(
+                  color: Colors.transparent, // 撑开透明区域以拦截点击退出事件
+                  width: double.infinity,
+                  height: stackHeight, // 给 Stack 设定计算出来的绝对高度
+                  child: Stack(
+                    key: _stackKey, // 🌟 挂载全局靶点
+                    clipBehavior: Clip.none,
+                    children: normalTiles,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1172,18 +1239,14 @@ class _StartMenuState extends State<StartMenu> {
       targetOpacity = isSelected ? (isActuallyDragging ? 0.8 : 1.0) : 0.5;
     }
 
-    // 移除单体缩降逻辑，交由外部画布统一缩小
     double targetScale = 1.0;
     if (isEditMode) {
-      // 补偿由于外部画布整体 0.9 缩小带来的影响，使选中图块在视觉上更为凸显
       targetScale = isSelected ? 1 : 0.9;
     }
 
-    // 非拖拽状态下使用计算出的物理像素
     final double targetLeft = tile.gridX * cellSize;
     final double targetTop = tile.gridY * cellSize;
 
-    // 拖拽时使用真实像素
     final double left = isActuallyDragging && tile.dragPixelOffset != null
         ? tile.dragPixelOffset!.dx
         : targetLeft;
@@ -1193,44 +1256,56 @@ class _StartMenuState extends State<StartMenu> {
     final double width = tile.widthCells * cellSize - gridSpacing;
     final double height = tile.heightCells * cellSize - gridSpacing;
 
-    // 为溢出边界的圆形按钮专门外扩布局空间，打破 Flutter 严格的 hitTest bounds 限制
     final double circleSize = 48.125 * 0.8;
     final double expandOffset = circleSize / 2;
 
-    // 主要的拖拽手势和磁贴本身
     Widget tileGestureContent = GestureDetector(
       onTap: () {
         if (isEditMode && selectedTileId != tile.instanceId) {
           setState(() {
             selectedTileId = tile.instanceId;
-            // 切换选中的磁贴时，记录当前稳定布局作为快照
             _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
           });
+          // 🌟 选中时自动吸附对齐视口
+          _ensureTileVisible(tile, cellSize);
         }
       },
       onLongPressStart: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        _onDragStart(tile, box.globalToLocal(details.globalPosition),
-            targetLeft, targetTop);
+        // 🌟 使用 _stackKey 来定位，防止因为滚动导致的 offset 错位
+        final RenderBox? box =
+            _stackKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box != null) {
+          _onDragStart(tile, box.globalToLocal(details.globalPosition),
+              targetLeft, targetTop, cellSize); // 传入 cellSize
+        }
       },
       onLongPressMoveUpdate: (details) {
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        _onDragUpdate(
-            tile, box.globalToLocal(details.globalPosition), cellSize);
+        final RenderBox? box =
+            _stackKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box != null) {
+          _onDragUpdate(
+              tile, box.globalToLocal(details.globalPosition), cellSize);
+        }
       },
       onLongPressEnd: (details) => _onDragEnd(tile, cellSize),
       onPanStart: (isEditMode && isSelected)
           ? (details) {
-              final RenderBox box = context.findRenderObject() as RenderBox;
-              _onDragStart(tile, box.globalToLocal(details.globalPosition),
-                  targetLeft, targetTop);
+              final RenderBox? box =
+                  _stackKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null) {
+                _onDragStart(tile, box.globalToLocal(details.globalPosition),
+                    targetLeft, targetTop, cellSize);
+              }
             }
           : null,
       onPanUpdate: (isEditMode && isSelected)
           ? (details) {
-              final RenderBox box = context.findRenderObject() as RenderBox;
-              _onDragUpdate(
-                  tile, box.globalToLocal(details.globalPosition), cellSize);
+              final RenderBox? box =
+                  _stackKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null) {
+                _onDragUpdate(
+                    tile, box.globalToLocal(details.globalPosition), cellSize);
+              }
             }
           : null,
       onPanEnd: (isEditMode && isSelected)
@@ -1257,7 +1332,6 @@ class _StartMenuState extends State<StartMenu> {
     Widget tileContent = Stack(
       clipBehavior: Clip.none,
       children: [
-        // 把原本的瓷贴放到扩充中心位置
         Positioned(
           left: expandOffset,
           top: expandOffset,
@@ -1271,7 +1345,6 @@ class _StartMenuState extends State<StartMenu> {
           ),
         ),
         if (isEditMode && isSelected && !isActuallyDragging) ...[
-          // Top right: unpin
           Positioned(
             top: 0,
             right: 0,
@@ -1281,14 +1354,14 @@ class _StartMenuState extends State<StartMenu> {
               duration: const Duration(milliseconds: 200),
               opacity: targetOpacity,
               child: _EditButton(
-                icon: const Icon(Icons.push_pin_outlined), // 移除pin图标
+                icon: const Icon(Icons.push_pin_outlined),
                 onPressed: () {
                   setState(() {
                     tiles.removeWhere((t) => t.instanceId == tile.instanceId);
                     _finalizeLayout();
 
-                    // 移除磁贴后布局永久改变，更新快照
                     _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
+
                     if (tiles.isEmpty) {
                       exitEditMode();
                     } else {
@@ -1299,7 +1372,6 @@ class _StartMenuState extends State<StartMenu> {
               ),
             ),
           ),
-          // Bottom right: resize
           Positioned(
             bottom: 0,
             right: 0,
@@ -1311,21 +1383,10 @@ class _StartMenuState extends State<StartMenu> {
               child: _EditButton(
                 icon: Transform.rotate(
                   angle: pi / 4,
-                  child: const Icon(Icons.arrow_forward), // 调整大小箭头
+                  child: const Icon(Icons.arrow_forward),
                 ),
                 onPressed: () {
                   setState(() {
-                    // 1. 标记当前磁贴正在调整大小关闭过渡动画
-                    _resizingTileId = tile.instanceId;
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _resizingTileId = null;
-                        });
-                      }
-                    });
-
-                    // 🌟 核心修复：先根据【当前屏幕上真实的尺寸】计算出下一步该变多大
                     TileSize nextSize;
                     if (tile.currentSize == TileSize.medium) {
                       nextSize = TileSize.small;
@@ -1339,7 +1400,6 @@ class _StartMenuState extends State<StartMenu> {
                       nextSize = TileSize.medium;
                     }
 
-                    // 🌟 核心：恢复初始布局快照 (清空之前所有的挤压变形)
                     if (_baseLayoutSnapshot != null) {
                       tiles =
                           _baseLayoutSnapshot!.map((e) => e.clone()).toList();
@@ -1348,28 +1408,25 @@ class _StartMenuState extends State<StartMenu> {
                           tiles.map((e) => e.clone()).toList();
                     }
 
-                    // 3. 获取恢复后列表中的“真身”
                     TileModel activeTile = tiles
                         .firstWhere((t) => t.instanceId == tile.instanceId);
 
-                    // 🌟 4. 把刚刚算好的下一步尺寸，强行赋予给快照中的真身
                     activeTile.currentSize = nextSize;
 
-                    // 5. 边界夹逼：防止变宽后掉出右侧边界，强制往左靠拢
                     activeTile.gridX = activeTile.gridX
                         .clamp(0, crossAxisCount - activeTile.widthCells);
 
-                    // 6. 推演排版：让引擎以为这是拖拽过来的，智能挤开其他磁贴
                     draggingTileId = activeTile.instanceId;
-                    originalItems = tiles
-                        .map((e) => e.clone())
-                        .toList(); // 以当前恢复+变形后的状态作为推演基础
+                    originalItems = tiles.map((e) => e.clone()).toList();
 
                     _updatePreview(activeTile.gridX, activeTile.gridY);
                     _finalizeLayout();
 
                     draggingTileId = null;
                     originalItems = null;
+
+                    // 🌟 调整大小可能会被挤到屏幕外围，强行追随保持可见
+                    _ensureTileVisible(activeTile, cellSize);
                   });
                 },
               ),
@@ -1379,21 +1436,12 @@ class _StartMenuState extends State<StartMenu> {
       ],
     );
 
-// 判断当前磁贴是否正在被调整大小
-    final bool isResizing = tile.instanceId == _resizingTileId;
-
-    // 🌟 核心：使用 AnimatedPositioned 实现布局改变时的自动顺滑挤推
     return AnimatedPositioned(
       key: tile.key,
-      // 只有手指拖拽时立刻响应(0ms)。其他的任何坐标改变（包括自己变大时的防越界左移，以及被别人推开）都恢复为 300ms 平滑过渡
       duration: Duration(milliseconds: isActuallyDragging ? 0 : 300),
       curve: Curves.easeOutCubic,
-      // 动画仅掌管左上角坐标
       left: left + gridSpacing / 2 - expandOffset,
       top: top + gridSpacing / 2 - expandOffset,
-
-      // 🚨 注意：我们去掉了这里的 width 和 height，让 AnimatedPositioned 自动包裹子组件。
-      // 将宽高的职责交给内部的 SizedBox，SizedBox 没有补间动画，因此形变会【瞬间】完成！
       child: SizedBox(
         width: width + expandOffset * 2,
         height: height + expandOffset * 2,
