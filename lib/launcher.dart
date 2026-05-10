@@ -5,12 +5,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:metro_ui/animations.dart';
+import 'package:metro_ui/animated_widgets.dart';
 import 'package:metro_ui/metro_page_push.dart';
 import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
+import 'package:windows_phone_simulator/about.dart';
 
 class LauncherPage extends StatefulWidget {
   const LauncherPage({super.key, required this.title});
@@ -23,17 +25,8 @@ class LauncherPage extends StatefulWidget {
 
 class _LauncherPageState extends State<LauncherPage>
     with TickerProviderStateMixin {
-  final List<GlobalKey> _keys = [];
-
-  late List<AnimationController> _controllers;
-  late List<Animation<double>> _animations;
-  late List<bool> _tileVisibility; // 控制每个 tile 的可见性
-
   bool _isEditMode = false; // 是否处于编辑模式
   final GlobalKey<_StartMenuState> _startMenuKey = GlobalKey<_StartMenuState>();
-
-  final int pushTime = 350; //非被点击的Tile总飞出时间
-  final int singleTileTime = 150; //单个Tile飞出时间
 
   late List<TileModel> _pinnedTiles;
 
@@ -88,17 +81,17 @@ class _LauncherPageState extends State<LauncherPage>
               ]),
         ),
         App(
-          id: 'com.ms.weather2',
-          name: '天气2',
+          id: 'com.ms.about',
+          name: '关于',
           themeColor: Colors.blue,
-          icon: const Icon(Icons.wb_sunny),
-          page: const Splashscreen(),
+          icon: const Icon(Icons.info),
+          page: const AboutPage(),
           smallTile: const MetroAppTile(
               icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
           mediumTile: LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
-            name: const Text('Panorama2'),
+            name: const Text('关于'),
             children: [
               MetroAppTile(
                 icon: const Icon(
@@ -110,18 +103,10 @@ class _LauncherPageState extends State<LauncherPage>
               const Padding(
                 padding: EdgeInsets.all(10),
                 child: Text(
-                  'Panorama Hub页面，具有浓郁的WP特色',
+                  '关于页面',
                   style: TextStyle(fontSize: 18),
                 ),
               ),
-            ],
-          ),
-          wideTile: const Row(
-            // 宽磁贴可以放更多信息
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Icon(Icons.wb_sunny, color: Colors.white, size: 40),
-              Text('新北市板桥区\n晴天 24°C', style: TextStyle(color: Colors.white)),
             ],
           ),
         ),
@@ -131,27 +116,6 @@ class _LauncherPageState extends State<LauncherPage>
   void initState() {
     super.initState();
     //打印设备屏幕宽度
-
-    _keys.addAll(List.generate(apps.length, (index) => GlobalKey()));
-
-    _tileVisibility =
-        List.generate(apps.length, (index) => false); // 初始化所有 tile 为可见
-
-    _controllers = List.generate(apps.length, (index) {
-      return AnimationController(
-        vsync: this,
-      );
-    });
-
-    _animations = _controllers.map((controller) {
-      return Tween<double>(
-        begin: 0.0,
-        end: 0.0,
-      ).animate(CurvedAnimation(
-        parent: controller,
-        curve: Curves.linear,
-      ));
-    }).toList();
 
     _pinnedTiles = [
       TileModel(
@@ -168,272 +132,23 @@ class _LauncherPageState extends State<LauncherPage>
   ///
   /// [key] 要检查的 GlobalKey
   /// 返回 true 表示组件可见，false 表示不可见
-  bool _isWidgetVisible(GlobalKey key) {
-    //return true;
-    final RenderBox? renderBox =
-        key.currentContext?.findRenderObject() as RenderBox?;
-
-    if (renderBox == null) return false;
-
-    final position = renderBox.localToGlobal(Offset.zero);
-    final size = renderBox.size;
-    final screenSize = MediaQuery.of(context).size;
-
-    return position.dx + size.width > 0 &&
-        position.dx < screenSize.width &&
-        position.dy + size.height > 0 &&
-        position.dy < screenSize.height;
-  }
-
-  Future<void> _startPushNextAnimations(GlobalKey tapKey) async {
-    // 找出所有可见的元素索引
-    final List<int> visibleIndices = [];
-    for (int i = 0; i < apps.length; i++) {
-      if (_isWidgetVisible(_keys[i])) {
-        visibleIndices.add(i);
-      }
-    }
-
-    setState(() {
-      _controllers = List.generate(apps.length, (index) {
-        // 只为可见元素创建真正的控制器
-        if (visibleIndices.contains(index)) {
-          return AnimationController(
-            duration: Duration(milliseconds: singleTileTime),
-            vsync: this,
-          );
-        } else {
-          // 不可见元素创建空控制器
-          return AnimationController(vsync: this);
-        }
-      });
-
-      _animations = _controllers.asMap().entries.map((entry) {
-        int index = entry.key;
-        AnimationController controller = entry.value;
-
-        // 只为可见元素创建真正的动画
-        if (visibleIndices.contains(index)) {
-          return Tween<double>(
-            begin: 0.0,
-            end: 3.1416 / 2,
-          ).animate(CurvedAnimation(
-            parent: controller,
-            curve: MetroCurves.normalPageRotateOut,
-          ));
-        } else {
-          // 不可见元素创建空动画
-          return Tween<double>(
-            begin: 0.0,
-            end: 0.0,
-          ).animate(CurvedAnimation(
-            parent: controller,
-            curve: Curves.linear,
-          ));
-        }
-      }).toList();
-    });
-
-    int thisIndex = 0;
-    final int visibleTilesCount = visibleIndices.length;
-
-    // 计算每个元素之间的延迟时间
-    final int delayTime =
-        ((pushTime - singleTileTime) / (visibleTilesCount - 1)).round();
-
-    // 执行动画（只对可见元素）
-    for (int i = apps.length - 1; i >= 0; i--) {
-      if (visibleIndices.contains(i)) {
-        if (_keys[i] == tapKey) {
-          thisIndex = i;
-          continue;
-        }
-        _controllers[i].forward();
-        await Future.delayed(Duration(milliseconds: delayTime));
-      }
-    }
-
-    await Future.delayed(Duration(milliseconds: delayTime * 2));
-    _controllers[thisIndex].forward();
-
-    //结束await后执行动画重置
-    await Future.delayed(Duration(milliseconds: singleTileTime));
-    for (var controller in _controllers) {
-      controller.reset();
-      //透明度设置为0
-      setState(() {
-        _tileVisibility = List.generate(apps.length, (index) => false);
-      });
-    }
-  }
-
-  Future<void> _startPushAnimations() async {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 找出所有可见的元素索引
-      final List<int> visibleIndices = [];
-      for (int i = 0; i < apps.length; i++) {
-        if (_isWidgetVisible(_keys[i])) {
-          visibleIndices.add(i);
-        } else {
-          _tileVisibility[i] = true;
-        }
-      }
-
-      setState(() {
-        for (int i in visibleIndices) {
-          _tileVisibility[i] = false;
-        }
-        _controllers = List.generate(apps.length, (index) {
-          // 只为可见元素创建真正的控制器
-          if (visibleIndices.contains(index)) {
-            return AnimationController(
-              duration: Duration(milliseconds: singleTileTime * 3),
-              vsync: this,
-            );
-          } else {
-            // 不可见元素创建空控制器
-            return AnimationController(vsync: this);
-          }
-        });
-
-        _animations = _controllers.asMap().entries.map((entry) {
-          int index = entry.key;
-          AnimationController controller = entry.value;
-
-          // 只为可见元素创建真正的动画
-          if (visibleIndices.contains(index)) {
-            return Tween<double>(
-              begin: -3.1416 / 180 * 65,
-              end: 0,
-            ).animate(CurvedAnimation(
-              parent: controller,
-              curve: MetroCurves.normalPageRotateIn,
-            ));
-          } else {
-            // 不可见元素创建空动画
-            return Tween<double>(
-              begin: 0.0,
-              end: 0.0,
-            ).animate(CurvedAnimation(
-              parent: controller,
-              curve: MetroCurves.normalPageRotateIn,
-            ));
-          }
-        }).toList();
-      });
-
-      final int visibleTilesCount = visibleIndices.length;
-
-      // 计算每个元素之间的延迟时间
-      final int delayTime =
-          ((pushTime - singleTileTime) / (visibleTilesCount - 1)).round();
-
-      // 执行动画（只对可见元素）
-      for (int i = apps.length - 1; i >= 0; i--) {
-        if (visibleIndices.contains(i)) {
-          setState(() {
-            _tileVisibility[i] = true; // 动画开始前直接显示
-          });
-          _controllers[i].forward();
-          await Future.delayed(Duration(milliseconds: delayTime));
-        }
-      }
-    });
-  }
-
-  Future<void> _startPopNextAnimations() async {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 找出所有可见的元素索引
-      final List<int> visibleIndices = [];
-      for (int i = 0; i < apps.length; i++) {
-        if (_isWidgetVisible(_keys[i])) {
-          visibleIndices.add(i);
-        } else {
-          _tileVisibility[i] = true;
-        }
-      }
-
-      setState(() {
-        for (int i in visibleIndices) {
-          _tileVisibility[i] = false;
-        }
-        _controllers = List.generate(apps.length, (index) {
-          // 只为可见元素创建真正的控制器
-          if (visibleIndices.contains(index)) {
-            return AnimationController(
-              duration: Duration(milliseconds: singleTileTime * 3),
-              vsync: this,
-            );
-          } else {
-            // 不可见元素创建空控制器
-            return AnimationController(vsync: this);
-          }
-        });
-
-        _animations = _controllers.asMap().entries.map((entry) {
-          int index = entry.key;
-          AnimationController controller = entry.value;
-
-          // 只为可见元素创建真正的动画
-          if (visibleIndices.contains(index)) {
-            return Tween<double>(
-              begin: 3.1416 / 180 * 50,
-              end: 0,
-            ).animate(CurvedAnimation(
-              parent: controller,
-              curve: MetroCurves.normalPageRotateIn,
-            ));
-          } else {
-            // 不可见元素创建空动画
-            return Tween<double>(
-              begin: 0.0,
-              end: 0.0,
-            ).animate(CurvedAnimation(
-              parent: controller,
-              curve: MetroCurves.normalPageRotateIn,
-            ));
-          }
-        }).toList();
-      });
-
-      final int visibleTilesCount = visibleIndices.length;
-
-      // 计算每个元素之间的延迟时间
-      final int delayTime =
-          ((pushTime - singleTileTime) / visibleTilesCount).round();
-
-      // 执行动画（只对可见元素）
-      for (int i = apps.length - 1; i >= 0; i--) {
-        if (visibleIndices.contains(i)) {
-          setState(() {
-            _tileVisibility[i] = true; // 动画开始前直接显示
-          });
-          _controllers[i].forward();
-          await Future.delayed(Duration(milliseconds: delayTime));
-        }
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MetroPageScaffold(
       onDidPushNext: <T>(T data) async {
-        //如果arguments存在arguments是int类型
-        if (data is int) {
-          await _startPushNextAnimations(_keys[data]);
+        if (data is String) {
+          await _startMenuKey.currentState?.startPushNextAnimations(data);
         }
       },
       onDidPush: () async {
-        await _startPushAnimations();
+        await _startMenuKey.currentState?.startPushAnimations();
       },
       onDidPopNext: () async {
-        //print("object");
-        await _startPopNextAnimations();
+        await _startMenuKey.currentState?.startPopNextAnimations();
       },
       onDidPop: () async {
-        print("object2");
-        //await _startPushAnimations();
+        // await _startMenuKey.currentState?.startPushAnimations();
       },
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -756,7 +471,7 @@ class StartMenu extends StatefulWidget {
   _StartMenuState createState() => _StartMenuState();
 }
 
-class _StartMenuState extends State<StartMenu> {
+class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
   final int crossAxisCount = 4;
   final double gridSpacing = 10.0;
 
@@ -764,7 +479,241 @@ class _StartMenuState extends State<StartMenu> {
 
   // 🌟 新增：纵向滚动控制器
   final ScrollController _scrollController = ScrollController();
-  // 🌟 新增：作为统一坐标系的画布 Key（解决滚动时获取坐标位置错乱的问题）
+  final Map<String, AnimationController> _flipControllers = {};
+  final Map<String, Animation<double>> _flipAnimations = {};
+
+  void _syncAnimations() {
+    for (var tile in tiles) {
+      if (!_flipControllers.containsKey(tile.instanceId)) {
+        var ctrl = AnimationController(
+            vsync: this, duration: const Duration(milliseconds: 150));
+        _flipControllers[tile.instanceId] = ctrl;
+        _flipAnimations[tile.instanceId] =
+            Tween<double>(begin: 0.0, end: math.pi / 2)
+                .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeIn));
+      }
+    }
+  }
+
+  Future<void> startPushNextAnimations(String tapInstanceId) async {
+    _syncAnimations();
+    double currentOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    double viewportHeight = _scrollController.hasClients
+        ? _scrollController.position.viewportDimension
+        : 1000.0;
+
+    final renderBox =
+        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    double cellWidth = renderBox.size.width / 4;
+    double cellHeight = cellWidth;
+
+    List<TileModel> visibleTiles = [];
+    for (var tile in tiles) {
+      double topEdge = tile.gridY * cellHeight;
+      double bottomEdge = (tile.gridY + tile.heightCells) * cellHeight;
+      if (bottomEdge > currentOffset - cellHeight &&
+          topEdge < currentOffset + viewportHeight + cellHeight) {
+        visibleTiles.add(tile);
+      }
+    }
+
+    if (visibleTiles.isEmpty) return;
+
+    int maxX = visibleTiles.map((e) => e.gridX).reduce(math.max);
+    int maxY = visibleTiles.map((e) => e.gridY).reduce(math.max);
+
+    Map<String, int> distances = {};
+    int maxDistance = 0;
+    for (var tile in visibleTiles) {
+      if (tile.instanceId == tapInstanceId) continue;
+      int dist = (maxX - tile.gridX) + (maxY - tile.gridY);
+      distances[tile.instanceId] = dist;
+      if (dist > maxDistance) {
+        maxDistance = dist;
+      }
+    }
+
+    final int pushTime = 350;
+    final int singleTileTime = 150;
+    final int groupDelay = maxDistance == 0
+        ? 0
+        : ((pushTime - singleTileTime) / maxDistance).round();
+
+    for (var tile in visibleTiles) {
+      if (tile.instanceId == tapInstanceId) continue;
+      int delayMs = distances[tile.instanceId]! * groupDelay;
+
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted) {
+          _flipControllers[tile.instanceId]?.duration =
+              Duration(milliseconds: singleTileTime);
+          _flipAnimations[tile.instanceId] =
+              Tween<double>(begin: 0.0, end: math.pi / 2)
+                  .animate(CurvedAnimation(
+            parent: _flipControllers[tile.instanceId]!,
+            curve: MetroCurves.normalPageRotateOut,
+          ));
+          _flipControllers[tile.instanceId]?.forward(from: 0.0);
+        }
+      });
+    }
+
+    int tappedDelay = (maxDistance * groupDelay) + groupDelay;
+    if (tappedDelay == 0 || maxDistance == 0)
+      tappedDelay = pushTime - singleTileTime;
+
+    Future.delayed(Duration(milliseconds: tappedDelay), () {
+      if (mounted) {
+        _flipControllers[tapInstanceId]?.duration =
+            Duration(milliseconds: singleTileTime);
+        _flipAnimations[tapInstanceId] =
+            Tween<double>(begin: 0.0, end: math.pi / 2).animate(CurvedAnimation(
+          parent: _flipControllers[tapInstanceId]!,
+          curve: MetroCurves.normalPageRotateOut,
+        ));
+        _flipControllers[tapInstanceId]?.forward(from: 0.0);
+      }
+    });
+
+    await Future.delayed(
+        Duration(milliseconds: tappedDelay + singleTileTime + 50));
+  }
+
+  Future<void> startPopNextAnimations() async {
+    _syncAnimations();
+    double currentOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    double viewportHeight = _scrollController.hasClients
+        ? _scrollController.position.viewportDimension
+        : 1000.0;
+
+    final renderBox =
+        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    double cellWidth = renderBox.size.width / 4;
+    double cellHeight = cellWidth;
+
+    List<TileModel> visibleTiles = [];
+    for (var tile in tiles) {
+      double topEdge = tile.gridY * cellHeight;
+      double bottomEdge = (tile.gridY + tile.heightCells) * cellHeight;
+      if (bottomEdge > currentOffset - cellHeight &&
+          topEdge < currentOffset + viewportHeight + cellHeight) {
+        visibleTiles.add(tile);
+      }
+    }
+
+    if (visibleTiles.isEmpty) return;
+
+    int minX = visibleTiles.map((e) => e.gridX).reduce(math.min);
+    int minY = visibleTiles.map((e) => e.gridY).reduce(math.min);
+
+    Map<String, int> distances = {};
+    int maxDistance = 0;
+    for (var tile in visibleTiles) {
+      int dist = (tile.gridX - minX) + (tile.gridY - minY);
+      distances[tile.instanceId] = dist;
+      if (dist > maxDistance) {
+        maxDistance = dist;
+      }
+    }
+
+    final int pushTime = 350;
+    final int singleTileTime = 150;
+    final int popDuration = singleTileTime * 3;
+    final int groupDelay = maxDistance == 0
+        ? 0
+        : ((pushTime - singleTileTime) / maxDistance).round();
+
+    for (var tile in visibleTiles) {
+      int delayMs = distances[tile.instanceId]! * groupDelay;
+
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted) {
+          _flipControllers[tile.instanceId]?.duration =
+              Duration(milliseconds: popDuration);
+          _flipAnimations[tile.instanceId] =
+              Tween<double>(begin: 50 * math.pi / 180, end: 0.0)
+                  .animate(CurvedAnimation(
+            parent: _flipControllers[tile.instanceId]!,
+            curve: MetroCurves.normalPageRotateIn,
+          ));
+          _flipControllers[tile.instanceId]?.forward(from: 0.0);
+        }
+      });
+    }
+
+    await Future.delayed(
+        Duration(milliseconds: (maxDistance * groupDelay) + popDuration + 50));
+  }
+
+  Future<void> startPushAnimations() async {
+    _syncAnimations();
+    double currentOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    double viewportHeight = _scrollController.hasClients
+        ? _scrollController.position.viewportDimension
+        : 1000.0;
+
+    final renderBox =
+        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    double cellWidth = renderBox.size.width / 4;
+    double cellHeight = cellWidth;
+
+    List<TileModel> visibleTiles = [];
+    for (var tile in tiles) {
+      double topEdge = tile.gridY * cellHeight;
+      double bottomEdge = (tile.gridY + tile.heightCells) * cellHeight;
+      if (bottomEdge > currentOffset - cellHeight &&
+          topEdge < currentOffset + viewportHeight + cellHeight) {
+        visibleTiles.add(tile);
+      }
+    }
+
+    if (visibleTiles.isEmpty) return;
+
+    int minX = visibleTiles.map((e) => e.gridX).reduce(math.min);
+    int minY = visibleTiles.map((e) => e.gridY).reduce(math.min);
+
+    Map<String, int> distances = {};
+    int maxDistance = 0;
+    for (var tile in visibleTiles) {
+      int dist = (tile.gridX - minX) + (tile.gridY - minY);
+      distances[tile.instanceId] = dist;
+      if (dist > maxDistance) {
+        maxDistance = dist;
+      }
+    }
+
+    final int pushTime = 350;
+    final int singleTileTime = 150;
+    final int popDuration = singleTileTime * 3;
+    final int groupDelay = maxDistance == 0
+        ? 0
+        : ((pushTime - singleTileTime) / maxDistance).round();
+
+    for (var tile in visibleTiles) {
+      int delayMs = distances[tile.instanceId]! * groupDelay;
+
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted) {
+          _flipControllers[tile.instanceId]?.duration =
+              Duration(milliseconds: popDuration);
+          _flipAnimations[tile.instanceId] =
+              Tween<double>(begin: -65 * math.pi / 180, end: 0.0)
+                  .animate(CurvedAnimation(
+            parent: _flipControllers[tile.instanceId]!,
+            curve: MetroCurves.normalPageRotateIn,
+          ));
+          _flipControllers[tile.instanceId]?.forward(from: 0.0);
+        }
+      });
+    }
+  }
+
   final GlobalKey _stackKey = GlobalKey();
 
   @override
@@ -787,6 +736,9 @@ class _StartMenuState extends State<StartMenu> {
 
   @override
   void dispose() {
+    for (var ctrl in _flipControllers.values) {
+      ctrl.dispose();
+    }
     _scrollController.dispose(); // 🌟 记得释放控制器
     hoverTimer?.cancel();
     super.dispose();
@@ -1323,6 +1275,7 @@ class _StartMenuState extends State<StartMenu> {
                   return tile.app.page;
                 },
               ),
+              dataToPass: tile.instanceId,
             );
           },
         ),
@@ -1435,6 +1388,22 @@ class _StartMenuState extends State<StartMenu> {
         ],
       ],
     );
+
+    _syncAnimations();
+    AnimationController? flipCtrl = _flipControllers[tile.instanceId];
+    if (flipCtrl != null) {
+      tileContent = AnimatedBuilder(
+        animation: flipCtrl,
+        builder: (context, child) {
+          Animation<double>? currentAnim = _flipAnimations[tile.instanceId];
+          return LeftEdgeRotateAnimation(
+            rotation: currentAnim?.value ?? 0.0,
+            child: child!,
+          );
+        },
+        child: tileContent,
+      );
+    }
 
     return AnimatedPositioned(
       key: tile.key,
