@@ -30,6 +30,8 @@ class _LauncherPageState extends State<LauncherPage>
 
   late List<TileModel> _pinnedTiles;
 
+
+
   List<App> get apps => [
         App(
           id: 'com.ms.weather',
@@ -37,23 +39,27 @@ class _LauncherPageState extends State<LauncherPage>
           themeColor: Colors.blue,
           icon: const Icon(Icons.wb_sunny),
           page: const Splashscreen(),
-          smallTile: const MetroAppTile(
-            icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24),
-            count: 2,
-          ),
-          mediumTile: LiveTile(
+          smallTile: const LiveTile(
+              name: Text('天气'),
+              size: LiveTileSize.small,
+              flipStyle: FlipStyle.elastic,
+              children: [
+                MetroAppTile(
+                    icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+              ]),
+          mediumTile: const LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
-            name: const Text('Panorama'),
+            name: Text('Panorama'),
             children: [
               MetroAppTile(
-                icon: const Icon(
+                icon: Icon(
                   Icons.map,
                   size: 70,
                 ),
                 count: 2,
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(10),
                 child: Text(
                   'Panorama Hub页面，具有浓郁的WP特色',
@@ -62,10 +68,10 @@ class _LauncherPageState extends State<LauncherPage>
               ),
             ],
           ),
-          wideTile: LiveTile(
+          wideTile: const LiveTile(
               size: LiveTileSize.wide,
               flipStyle: FlipStyle.elastic,
-              name: const Text('Panorama'),
+              name: Text('Panorama'),
               children: [
                 MetroAppTile(
                     icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
@@ -86,21 +92,26 @@ class _LauncherPageState extends State<LauncherPage>
           themeColor: Colors.blue,
           icon: const Icon(Icons.info),
           page: const AboutPage(),
-          smallTile: const MetroAppTile(
-              icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-          mediumTile: LiveTile(
+          smallTile: const LiveTile(
+              size: LiveTileSize.small,
+              flipStyle: FlipStyle.elastic,
+              children: [
+                MetroAppTile(
+                    icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+              ]),
+          mediumTile: const LiveTile(
             size: LiveTileSize.medium,
             flipStyle: FlipStyle.elastic,
-            name: const Text('关于'),
+            name: Text('关于'),
             children: [
               MetroAppTile(
-                icon: const Icon(
+                icon: Icon(
                   Icons.map,
                   size: 70,
                 ),
                 count: 2,
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(10),
                 child: Text(
                   '关于页面',
@@ -206,21 +217,11 @@ class _LauncherPageState extends State<LauncherPage>
                                   menu: MetroContextMenuItem(
                                     child: const Text('pin to start'),
                                     onTap: () {
-                                      //关闭上下文菜单然后回到第一页
+                                      // 关闭上下文菜单
                                       menuKey.currentState?.dismissMenu();
-                                      setState(() {
-                                        _pinnedTiles.add(TileModel(
-                                          instanceId:
-                                              '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
-                                          app: app,
-                                          currentSize: TileSize.medium,
-                                          gridX:
-                                              0, // In reality, we should find an empty spot
-                                          gridY: _pinnedTiles.lastOrNull != null
-                                              ? _pinnedTiles.last.gridY + 2
-                                              : 0,
-                                        ));
-                                      });
+                                      
+                                      // 外层不参与磁贴排版，直接把 App 丢给 StartMenu 内部处理！
+                                      _startMenuKey.currentState?.pinApp(app);
                                     },
                                   ),
                                   child: ListTile(
@@ -722,16 +723,77 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     tiles = List.from(widget.initialTiles);
   }
 
-  @override
-  void didUpdateWidget(StartMenu oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    for (var newTile in widget.initialTiles) {
-      if (!tiles.any((t) => t.instanceId == newTile.instanceId)) {
-        setState(() {
-          tiles.add(newTile);
-        });
+  // @override
+  // void didUpdateWidget(StartMenu oldWidget) {
+  //   super.didUpdateWidget(oldWidget);
+  //   for (var newTile in widget.initialTiles) {
+  //     if (!tiles.any((t) => t.instanceId == newTile.instanceId)) {
+  //       setState(() {
+  //         tiles.add(newTile);
+  //       });
+  //     }
+  //   }
+  // }
+
+  /// 自动寻找能够容纳指定宽高的空余网格坐标
+  /// 逻辑：从“试图与最底部边缘平齐”的 Y 坐标开始尝试。
+  /// 如果该行没有任何一列能放下，则一行一行（y++）向下移动，直到找到空位。
+  Offset _findEmptySpot(List<TileModel> currentTiles, int width, int height) {
+    int cols = 4; // 桌面总列数
+    int maxGridY = 0;
+    for (var tile in currentTiles) {
+      if (tile.gridY + tile.heightCells > maxGridY) {
+        maxGridY = tile.gridY + tile.heightCells;
       }
     }
+
+    int y = math.max(0, maxGridY - height);
+
+    while (true) {
+      for (int x = 0; x <= cols - width; x++) {
+        bool isOverlapping = false;
+        for (var tile in currentTiles) {
+          if (x < tile.gridX + tile.widthCells &&
+              x + width > tile.gridX &&
+              y < tile.gridY + tile.heightCells &&
+              y + height > tile.gridY) {
+            isOverlapping = true;
+            break;
+          }
+        }
+        if (!isOverlapping) {
+          return Offset(x.toDouble(), y.toDouble());
+        }
+      }
+      y++; 
+    }
+  }
+
+  // 3. 🌟 新增对外的公共方法，供 LauncherPage 调用
+  void pinApp(App app) {
+    int newWidthCells = 2; // 默认中磁贴
+    int newHeightCells = 2;
+
+    Offset emptySpot = _findEmptySpot(tiles, newWidthCells, newHeightCells);
+
+    setState(() {
+      tiles.add(TileModel(
+        instanceId: '${app.id}_${DateTime.now().millisecondsSinceEpoch}',
+        app: app,
+        currentSize: TileSize.medium,
+        gridX: emptySpot.dx.toInt(),
+        gridY: emptySpot.dy.toInt(),
+      ));
+    });
+
+    // 小彩蛋/体验优化：Pin 完之后，自动向下滚动，向用户展示刚刚固定的新磁贴
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final RenderBox? box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null) {
+        double cellSize = box.size.width / crossAxisCount;
+        _ensureTileVisible(tiles.last, cellSize);
+      }
+    });
   }
 
   @override
@@ -1162,7 +1224,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
               child: SingleChildScrollView(
                 clipBehavior: Clip.none,
                 controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
+                //physics: const BouncingScrollPhysics(),
                 child: Container(
                   color: Colors.transparent, // 撑开透明区域以拦截点击退出事件
                   width: double.infinity,
@@ -1208,8 +1270,8 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     final double width = tile.widthCells * cellSize - gridSpacing;
     final double height = tile.heightCells * cellSize - gridSpacing;
 
-    final double circleSize = 48.125 * 0.8;
-    final double expandOffset = circleSize / 2;
+    const double circleSize = 48.125 * 0.8;
+    const double expandOffset = circleSize / 2;
 
     Widget tileGestureContent = GestureDetector(
       onTap: () {
@@ -1223,12 +1285,11 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
         }
       },
       onLongPressStart: (details) {
-        // 🌟 使用 _stackKey 来定位，防止因为滚动导致的 offset 错位
         final RenderBox? box =
             _stackKey.currentContext?.findRenderObject() as RenderBox?;
         if (box != null) {
           _onDragStart(tile, box.globalToLocal(details.globalPosition),
-              targetLeft, targetTop, cellSize); // 传入 cellSize
+              targetLeft, targetTop, cellSize);
         }
       },
       onLongPressMoveUpdate: (details) {
@@ -1240,7 +1301,9 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
         }
       },
       onLongPressEnd: (details) => _onDragEnd(tile, cellSize),
-      onPanStart: (isEditMode && isSelected)
+
+      // 🌟 终极修复：拆分 onPan 为具体的垂直和水平手势，利用深度优先规则彻底秒杀外层列表的滚动！
+      onVerticalDragStart: (isEditMode && isSelected)
           ? (details) {
               final RenderBox? box =
                   _stackKey.currentContext?.findRenderObject() as RenderBox?;
@@ -1250,7 +1313,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
               }
             }
           : null,
-      onPanUpdate: (isEditMode && isSelected)
+      onVerticalDragUpdate: (isEditMode && isSelected)
           ? (details) {
               final RenderBox? box =
                   _stackKey.currentContext?.findRenderObject() as RenderBox?;
@@ -1260,7 +1323,31 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
               }
             }
           : null,
-      onPanEnd: (isEditMode && isSelected)
+      onVerticalDragEnd: (isEditMode && isSelected)
+          ? (details) => _onDragEnd(tile, cellSize)
+          : null,
+
+      onHorizontalDragStart: (isEditMode && isSelected)
+          ? (details) {
+              final RenderBox? box =
+                  _stackKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null) {
+                _onDragStart(tile, box.globalToLocal(details.globalPosition),
+                    targetLeft, targetTop, cellSize);
+              }
+            }
+          : null,
+      onHorizontalDragUpdate: (isEditMode && isSelected)
+          ? (details) {
+              final RenderBox? box =
+                  _stackKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null) {
+                _onDragUpdate(
+                    tile, box.globalToLocal(details.globalPosition), cellSize);
+              }
+            }
+          : null,
+      onHorizontalDragEnd: (isEditMode && isSelected)
           ? (details) => _onDragEnd(tile, cellSize)
           : null,
       child: AbsorbPointer(
@@ -1438,6 +1525,7 @@ class LiveTile extends StatefulWidget {
   final LiveTileSize size;
   final Widget? name;
   final FlipStyle flipStyle;
+  final bool enableLiveTile;
 
   const LiveTile({
     super.key,
@@ -1445,6 +1533,7 @@ class LiveTile extends StatefulWidget {
     this.name,
     this.size = LiveTileSize.medium,
     this.flipStyle = FlipStyle.normal,
+    this.enableLiveTile = true,
   });
 
   @override
@@ -1465,7 +1554,10 @@ class _LiveTileState extends State<LiveTile>
         duration: const Duration(milliseconds: 2000), vsync: this);
 
     _setupAnimation();
-    _startTimer();
+    // 🌟 2. 只有在开启状态且子组件大于 1 个时，才启动翻转定时器
+    if (widget.enableLiveTile && widget.children.length > 1) {
+      _startTimer();
+    }
   }
 
   void _setupAnimation() {
@@ -1480,6 +1572,8 @@ class _LiveTileState extends State<LiveTile>
 
   void _startTimer() {
     _timer?.cancel();
+    // 🌟 3. 在定时器内部做双重拦截保护
+    if (!widget.enableLiveTile || widget.children.length <= 1) return;
     // 生成一个 3.0 到 6.0 之间的随机浮点数
     final double randomSeconds = 3.0 + math.Random().nextDouble() * 3.0;
     _timer =
@@ -1509,6 +1603,35 @@ class _LiveTileState extends State<LiveTile>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.flipStyle != widget.flipStyle) {
       _setupAnimation();
+    }
+
+    // 🌟 核心修复 1：解决改变大小后出现黑屏空档期的问题
+    // 如果磁贴的尺寸或者子页面的数量变了，立刻强制复位到第一页，并重启定时器
+    if (oldWidget.size != widget.size ||
+        oldWidget.children.length != widget.children.length) {
+      _controller.reset();
+      setState(() {
+        _currentIndex = 0; // 强制画面切回第一页
+      });
+      if (widget.enableLiveTile && widget.children.length > 1) {
+        _startTimer();
+      } else {
+        _timer?.cancel();
+      }
+    }
+    // 🌟 4. 处理运行时动态切换开关状态 (比如你在代码里热重载改了 enableLiveTile)
+    else if (oldWidget.enableLiveTile != widget.enableLiveTile) {
+      if (widget.enableLiveTile && widget.children.length > 1) {
+        _startTimer(); // 开启时恢复翻转
+      } else {
+        _timer?.cancel(); // 关闭时停止定时器
+        if (_currentIndex != 0 || _controller.isAnimating) {
+          _controller.reset();
+          setState(() {
+            _currentIndex = 0; // 强制将画面复位到第一个子组件
+          });
+        }
+      }
     }
   }
 
@@ -1575,7 +1698,8 @@ class _LiveTileState extends State<LiveTile>
                         child: Stack(
                           children: [
                             widget.children[index],
-                            if (widget.name != null)
+                            if (widget.name != null &&
+                                widget.size != LiveTileSize.small)
                               Positioned(
                                 left: 10,
                                 bottom: 6,
