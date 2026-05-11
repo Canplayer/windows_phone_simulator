@@ -11,6 +11,7 @@ import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:metro_ui/widgets/tile.dart';
+import 'package:windows_phone_simulator/global_perspective_opacity.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
 import 'package:windows_phone_simulator/about.dart';
 
@@ -30,8 +31,6 @@ class _LauncherPageState extends State<LauncherPage>
 
   late List<TileModel> _pinnedTiles;
 
-
-
   List<App> get apps => [
         App(
           id: 'com.ms.weather',
@@ -47,26 +46,29 @@ class _LauncherPageState extends State<LauncherPage>
                 MetroAppTile(
                     icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
               ]),
-          mediumTile: const LiveTile(
-            size: LiveTileSize.medium,
-            flipStyle: FlipStyle.elastic,
-            name: Text('Panorama'),
-            children: [
-              MetroAppTile(
-                icon: Icon(
-                  Icons.map,
-                  size: 70,
+          mediumTile: const GlobalPerspectiveOpacity(
+            opacity: 0.8,
+            child: LiveTile(
+              size: LiveTileSize.medium,
+              flipStyle: FlipStyle.elastic,
+              name: Text('Panorama'),
+              children: [
+                MetroAppTile(
+                  icon: Icon(
+                    Icons.map,
+                    size: 70,
+                  ),
+                  count: 2,
                 ),
-                count: 2,
-              ),
-              Padding(
-                padding: EdgeInsets.all(10),
-                child: Text(
-                  'Panorama Hub页面，具有浓郁的WP特色',
-                  style: TextStyle(fontSize: 18),
+                Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Text(
+                    'Panorama Hub页面，具有浓郁的WP特色',
+                    style: TextStyle(fontSize: 18),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           wideTile: const LiveTile(
               size: LiveTileSize.wide,
@@ -219,7 +221,7 @@ class _LauncherPageState extends State<LauncherPage>
                                     onTap: () {
                                       // 关闭上下文菜单
                                       menuKey.currentState?.dismissMenu();
-                                      
+
                                       // 外层不参与磁贴排版，直接把 App 丢给 StartMenu 内部处理！
                                       _startMenuKey.currentState?.pinApp(app);
                                     },
@@ -316,36 +318,6 @@ class LauncherSnapPhysics extends ScrollPhysics {
       }
     }
     return nearest;
-  }
-}
-
-class MetroEditState extends InheritedWidget {
-  final bool isEditMode;
-  final bool isSelected;
-  final bool isActuallyDragging;
-
-  const MetroEditState({
-    super.key,
-    required this.isEditMode,
-    required this.isSelected,
-    required this.isActuallyDragging,
-    required super.child,
-  });
-
-  double get targetOpacity =>
-      isEditMode ? (isSelected ? (isActuallyDragging ? 0.8 : 1.0) : 0.5) : 1.0;
-
-  bool get isFloating => isEditMode && !isSelected;
-
-  static MetroEditState? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<MetroEditState>();
-  }
-
-  @override
-  bool updateShouldNotify(MetroEditState oldWidget) {
-    return isEditMode != oldWidget.isEditMode ||
-        isSelected != oldWidget.isSelected ||
-        isActuallyDragging != oldWidget.isActuallyDragging;
   }
 }
 
@@ -765,7 +737,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
           return Offset(x.toDouble(), y.toDouble());
         }
       }
-      y++; 
+      y++;
     }
   }
 
@@ -788,7 +760,8 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
 
     // 小彩蛋/体验优化：Pin 完之后，自动向下滚动，向用户展示刚刚固定的新磁贴
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final RenderBox? box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? box =
+          _stackKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null) {
         double cellSize = box.size.width / crossAxisCount;
         _ensureTileVisible(tiles.last, cellSize);
@@ -1273,6 +1246,9 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     const double circleSize = 48.125 * 0.8;
     const double expandOffset = circleSize / 2;
 
+    // 提炼浮动状态判断
+    final bool isFloating = isEditMode && !isSelected;
+
     Widget tileGestureContent = GestureDetector(
       onTap: () {
         if (isEditMode && selectedTileId != tile.instanceId) {
@@ -1352,19 +1328,36 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
           : null,
       child: AbsorbPointer(
         absorbing: isEditMode,
-        child: Tile(
-          child: tile.app.getTileWidget(tile.currentSize),
-          onTap: () {
-            metroPagePush(
-              context,
-              MetroPageRoute(
-                builder: (context) {
-                  return tile.app.page;
-                },
-              ),
-              dataToPass: tile.instanceId,
+        // 🌟 重构核心 1：用 TweenAnimationBuilder 在父级处理平滑的透明度过渡
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 200),
+          tween: Tween<double>(begin: 1.0, end: targetOpacity),
+          builder: (context, opacityValue, child) {
+            // 🌟 盖上你写的终极 3D 摄像机透明度控件！
+            return GlobalPerspectiveOpacity(
+              opacity: opacityValue,
+              perspectiveDepth: 0.000795,
+              child: child!,
             );
           },
+          // 🌟 重构核心 2：把原本 LiveTile 里的浮动包装器提到了这里
+          child: FloatingWrapper(
+            isFloating: isFloating,
+            child: Tile(
+              child: tile.app.getTileWidget(tile.currentSize),
+              onTap: () {
+                metroPagePush(
+                  context,
+                  MetroPageRoute(
+                    builder: (context) {
+                      return tile.app.page;
+                    },
+                  ),
+                  dataToPass: tile.instanceId,
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -1377,12 +1370,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
           top: expandOffset,
           right: expandOffset,
           bottom: expandOffset,
-          child: MetroEditState(
-            isEditMode: isEditMode,
-            isSelected: isSelected,
-            isActuallyDragging: isActuallyDragging,
-            child: tileGestureContent,
-          ),
+          child: tileGestureContent,
         ),
         if (isEditMode && isSelected && !isActuallyDragging) ...[
           Positioned(
@@ -1655,72 +1643,62 @@ class _LiveTileState extends State<LiveTile>
         break;
     }
 
-    final editState = MetroEditState.of(context);
-    final opacity = editState?.targetOpacity ?? 1.0;
-    final isFloating = editState?.isFloating ?? false;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          final double rotationValue = _animation.value * math.pi;
+          final bool showBack = rotationValue > math.pi / 2;
+          final int nextIndex = (_currentIndex + 1) % widget.children.length;
 
-    return FloatingWrapper(
-      isFloating: isFloating,
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            final double rotationValue = _animation.value * math.pi;
-            final bool showBack = rotationValue > math.pi / 2;
-            final int nextIndex = (_currentIndex + 1) % widget.children.length;
+          return Stack(fit: StackFit.expand, children: [
+            ...List.generate(widget.children.length, (index) {
+              bool isVisibleFace = false;
+              Matrix4 transform = Matrix4.identity();
 
-            return Stack(fit: StackFit.expand, children: [
-              ...List.generate(widget.children.length, (index) {
-                bool isVisibleFace = false;
-                Matrix4 transform = Matrix4.identity();
+              if (index == _currentIndex && !showBack) {
+                isVisibleFace = true;
+                transform.rotateX(rotationValue);
+              } else if (index == nextIndex && showBack) {
+                isVisibleFace = true;
+                transform.rotateX(rotationValue);
+                transform.rotateX(math.pi);
+              }
 
-                if (index == _currentIndex && !showBack) {
-                  isVisibleFace = true;
-                  transform.rotateX(rotationValue);
-                } else if (index == nextIndex && showBack) {
-                  isVisibleFace = true;
-                  transform.rotateX(rotationValue);
-                  transform.rotateX(math.pi);
-                }
-
-                return Offstage(
-                  offstage: !isVisibleFace,
-                  child: Transform(
-                    transform: transform,
-                    alignment: Alignment.center,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: opacity,
-                      child: Container(
-                        color: Theme.of(context).colorScheme.primary,
-                        child: Stack(
-                          children: [
-                            widget.children[index],
-                            if (widget.name != null &&
-                                widget.size != LiveTileSize.small)
-                              Positioned(
-                                left: 10,
-                                bottom: 6,
-                                child: DefaultTextStyle.merge(
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                  child: widget.name!,
-                                ),
+              return Offstage(
+                offstage: !isVisibleFace,
+                child: Transform(
+                  transform: transform,
+                  alignment: Alignment.center,
+                  // 🌟 去掉了 AnimatedOpacity，颜色直接应用到底层容器上
+                  child: Container(
+                    color: Theme.of(context).colorScheme.primary,
+                    child: Stack(
+                      children: [
+                        widget.children[index],
+                        if (widget.name != null &&
+                            widget.size != LiveTileSize.small)
+                          Positioned(
+                            left: 10,
+                            bottom: 6,
+                            child: DefaultTextStyle.merge(
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
                               ),
-                          ],
-                        ),
-                      ),
+                              child: widget.name!,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                );
-              }),
-            ]);
-          },
-        ),
+                ),
+              );
+            }),
+          ]);
+        },
       ),
     );
   }
