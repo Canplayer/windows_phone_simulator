@@ -1196,6 +1196,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
                 controller: _scrollController,
                 //physics: const BouncingScrollPhysics(),
                 child: Container(
+                  padding: const EdgeInsets.only(top: 80),
                   color: Colors.transparent, // 撑开透明区域以拦截点击退出事件
                   width: double.infinity,
                   height: stackHeight, // 给 Stack 设定计算出来的绝对高度
@@ -1223,10 +1224,10 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
       targetOpacity = isSelected ? (isActuallyDragging ? 0.8 : 1.0) : 0.5;
     }
 
-    double targetScale = 1.0;
-    if (isEditMode) {
-      targetScale = isSelected ? 1 : 0.9;
-    }
+    // double targetScale = 1.0;
+    // if (isEditMode) {
+    //   targetScale = isSelected ? 1 : 0.9;
+    // }
 
     final double targetLeft = tile.gridX * cellSize;
     final double targetTop = tile.gridY * cellSize;
@@ -1478,25 +1479,27 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
       );
     }
 
-    return AnimatedPositioned(
-      key: tile.key,
-      duration: Duration(milliseconds: isActuallyDragging ? 0 : 300),
-      curve: Curves.easeOutCubic,
-      left: left + gridSpacing / 2 - expandOffset,
-      top: top + gridSpacing / 2 - expandOffset,
-      child: SizedBox(
-        width: width + expandOffset * 2,
-        height: height + expandOffset * 2,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 200),
-          scale: targetScale,
-          curve: Curves.easeOutCubic,
-          child: tileContent,
-        ),
-      ),
-    );
-  }
-}
+return AnimatedPositioned(
+         key: tile.key,
+         duration: Duration(milliseconds: isActuallyDragging ? 0 : 300),
+         curve: Curves.easeOutCubic,
+         left: left + gridSpacing / 2 - expandOffset,
+         top: top + gridSpacing / 2 - expandOffset,
+         child: SizedBox(
+           width: width + expandOffset * 2,
+           height: height + expandOffset * 2,
+           
+           // 🌟 核心：换上我们新写的微交互控制器！
+           child: TileInteractionAnimator(
+             isEditMode: isEditMode,
+             isSelected: isSelected,
+             child: tileContent,
+           ),
+           
+         ),
+       );
+     }
+   }
 
 //动态磁贴大小预设
 enum LiveTileSize { small, medium, wide }
@@ -1882,6 +1885,167 @@ class _FloatingWrapperState extends State<FloatingWrapper> {
   }
 }
 
+/// 磁贴专属微交互动画控制器
+/// 负责处理：按下缓慢放大、弹性回落、非选中态缩小等复杂组合动画
+/// 磁贴专属微交互动画控制器
+/// 完美分离了【物理按压】与【状态变化】两条独立的动画流，互不干扰
+class TileInteractionAnimator extends StatefulWidget {
+  final bool isEditMode;
+  final bool isSelected;
+  final Widget child;
+
+  const TileInteractionAnimator({
+    super.key,
+    required this.isEditMode,
+    required this.isSelected,
+    required this.child,
+  });
+
+  @override
+  State<TileInteractionAnimator> createState() => _TileInteractionAnimatorState();
+}
+
+class _TileInteractionAnimatorState extends State<TileInteractionAnimator> with TickerProviderStateMixin {
+  
+  // 控制流 1：物理按压
+  late AnimationController _pressController;
+  Timer? _pressTimer;
+
+  // 控制流 2：系统状态
+  late AnimationController _stateController;
+
+  // ==========================================
+  // 🎛️ 动画流 1：手指按下的缓慢放大 (独立受控)
+  // ==========================================
+  final double _pressTargetScale = 1.05; // 按下放大的目标大小
+  final Duration _pressDelay = const Duration(milliseconds: 200); // 按下后多久开始放大
+  final Duration _pressDuration = const Duration(milliseconds: 500); // 放大的持续时间
+  final Curve _pressCurve = Curves.easeOutCubic; // 放大的曲线
+  final Duration _releaseDuration = const Duration(milliseconds: 300); // 松手回缩的时间
+  final Curve _releaseCurve = Curves.easeOutCubic; // 松手回缩的曲线
+
+  // ==========================================
+  // 🎛️ 动画流 2：选中时的弹性回落 (独立受控)
+  // ==========================================
+  final double _popScale = 1.2; // 🌟 瞬间放大的峰值 (改为了 1.2)
+  final double _selectedScale = 1.1; // 🌟 新增：选中状态下的最终悬浮大小
+  final double _unselectedScale = 0.9; // 编辑模式未选中时的缩小值
+
+  final Duration _popDuration = const Duration(milliseconds: 50); // 冲向峰值的时间
+  final Duration _bounceDuration = const Duration(milliseconds: 500); // 弹性回落的时间
+  final Curve _bounceCurve = Curves.easeOutCubic; // 弹性回落的物理曲线
+  // ==========================================
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // 负责 0.0 到 1.0 的按压进度
+    _pressController = AnimationController(vsync: this);
+    
+    // 负责 0.0 到 2.0 的全局状态缩放
+    _stateController = AnimationController(
+      vsync: this,
+      lowerBound: 0.0,
+      upperBound: 2.0,
+      // 🌟 初始化时，如果处于选中状态，直接赋予 1.1 的悬浮大小
+      value: widget.isEditMode ? (widget.isSelected ? _selectedScale : _unselectedScale) : 1.0,
+    );
+  }
+
+  @override
+  void didUpdateWidget(TileInteractionAnimator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // ==========================================
+    // 逻辑状态变更处理 (只操作 _stateController)
+    // ==========================================
+    if (!oldWidget.isEditMode && widget.isEditMode) {
+      if (widget.isSelected) {
+        _playPopBounce(); // 刚进入编辑模式的主磁贴：弹一下然后停在 1.1
+      } else {
+        _stateController.animateTo(_unselectedScale, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+      }
+    } else if (oldWidget.isEditMode && !widget.isEditMode) {
+      // 退出编辑模式，全部恢复到 1.0
+      _stateController.animateTo(1.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+    } else if (widget.isEditMode && !oldWidget.isSelected && widget.isSelected) {
+      // 在编辑模式下选中了该磁贴，触发弹跳并停在 1.1
+      _playPopBounce();
+    } else if (widget.isEditMode && oldWidget.isSelected && !widget.isSelected) {
+      // 失去选中状态，缩小回 0.9
+      _stateController.animateTo(_unselectedScale, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+    }
+  }
+
+  /// 播放组合拳：极速冲向 1.2 -> 弹性回落到 1.1
+  void _playPopBounce() {
+    _stateController.animateTo(_popScale, duration: _popDuration, curve: Curves.easeOut).then((_) {
+      if (mounted) {
+        // 🌟 核心修改：回落的终点不再是 1.0，而是 _selectedScale (1.1)
+        _stateController.animateTo(_selectedScale, duration: _bounceDuration, curve: _bounceCurve);
+      }
+    });
+  }
+
+  // ==========================================
+  // 物理触摸事件处理 (只操作 _pressController)
+  // ==========================================
+  void _handlePointerDown(PointerDownEvent event) {
+    _pressTimer?.cancel();
+    
+    // 开启 200ms 倒计时，如果不松手，就开始执行 500ms 的缓慢放大
+    _pressTimer = Timer(_pressDelay, () {
+      _pressController.animateTo(1.0, duration: _pressDuration, curve: _pressCurve);
+    });
+  }
+
+  void _handlePointerUpOrCancel(PointerEvent event) {
+    // 手指松开，取消计时器（如果还没到 200ms 就不会触发放大）
+    _pressTimer?.cancel();
+    // 无论目前放大了多少，立刻平滑回缩
+    _pressController.animateTo(0.0, duration: _releaseDuration, curve: _releaseCurve);
+  }
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    _pressController.dispose();
+    _stateController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: _handlePointerDown,
+      onPointerUp: _handlePointerUpOrCancel,
+      onPointerCancel: _handlePointerUpOrCancel,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_pressController, _stateController]),
+        builder: (context, child) {
+          
+          // 1. 算出按压带来的额外比例（进度 0~1 映射到 1.0~1.05）
+          double pressScale = 1.0 + ((_pressTargetScale - 1.0) * _pressController.value);
+          
+          // 2. 算出逻辑状态带来的比例
+          double stateScale = _stateController.value;
+          
+          // 3. 物理乘算叠加。互不干扰！
+          double finalScale = pressScale * stateScale;
+
+          return Transform.scale(
+            scale: finalScale,
+            alignment: Alignment.center,
+            child: child,
+          );
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
 class _EditButton extends StatefulWidget {
   final Widget icon;
   final VoidCallback onPressed;
