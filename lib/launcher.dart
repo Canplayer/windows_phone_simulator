@@ -11,7 +11,7 @@ import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:metro_ui/widgets/tile.dart';
-import 'package:windows_phone_simulator/global_perspective_opacity.dart';
+import 'package:windows_phone_simulator/global_perspective.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
 import 'package:windows_phone_simulator/about.dart';
 
@@ -46,29 +46,26 @@ class _LauncherPageState extends State<LauncherPage>
                 MetroAppTile(
                     icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
               ]),
-          mediumTile: const GlobalPerspectiveOpacity(
-            opacity: 0.8,
-            child: LiveTile(
-              size: LiveTileSize.medium,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Panorama'),
-              children: [
-                MetroAppTile(
-                  icon: Icon(
-                    Icons.map,
-                    size: 70,
-                  ),
-                  count: 2,
+          mediumTile: const LiveTile(
+            size: LiveTileSize.medium,
+            flipStyle: FlipStyle.elastic,
+            name: Text('Panorama'),
+            children: [
+              MetroAppTile(
+                icon: Icon(
+                  Icons.map,
+                  size: 70,
                 ),
-                Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Panorama Hub页面，具有浓郁的WP特色',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                count: 2,
+              ),
+              Padding(
+                padding: EdgeInsets.all(10),
+                child: Text(
+                  'Panorama Hub页面，具有浓郁的WP特色',
+                  style: TextStyle(fontSize: 18),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           wideTile: const LiveTile(
               size: LiveTileSize.wide,
@@ -1334,10 +1331,11 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
           tween: Tween<double>(begin: 1.0, end: targetOpacity),
           builder: (context, opacityValue, child) {
             // 🌟 盖上你写的终极 3D 摄像机透明度控件！
-            return GlobalPerspectiveOpacity(
+            return Opacity(
               opacity: opacityValue,
-              perspectiveDepth: 0.000795,
-              child: child!,
+              child: GlobalPerspective(
+                child: child!,
+              ),
             );
           },
           // 🌟 重构核心 2：把原本 LiveTile 里的浮动包装器提到了这里
