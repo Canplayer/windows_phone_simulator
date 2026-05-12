@@ -443,7 +443,7 @@ class StartMenu extends StatefulWidget {
 
 class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
   final int crossAxisCount = 4;
-  final double gridSpacing = 10.0;
+  final double gridSpacing = 19 * 0.625 * 0.8;
 
   late List<TileModel> tiles;
 
@@ -476,7 +476,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     final renderBox =
         _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    double cellWidth = renderBox.size.width / 4;
+    double cellWidth = renderBox.size.width / crossAxisCount;
     double cellHeight = cellWidth;
 
     List<TileModel> visibleTiles = [];
@@ -562,7 +562,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     final renderBox =
         _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    double cellWidth = renderBox.size.width / 4;
+    double cellWidth = renderBox.size.width / crossAxisCount;
     double cellHeight = cellWidth;
 
     List<TileModel> visibleTiles = [];
@@ -630,7 +630,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     final renderBox =
         _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    double cellWidth = renderBox.size.width / 4;
+    double cellWidth = renderBox.size.width / crossAxisCount;
     double cellHeight = cellWidth;
 
     List<TileModel> visibleTiles = [];
@@ -708,7 +708,7 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
   /// 逻辑：从“试图与最底部边缘平齐”的 Y 坐标开始尝试。
   /// 如果该行没有任何一列能放下，则一行一行（y++）向下移动，直到找到空位。
   Offset _findEmptySpot(List<TileModel> currentTiles, int width, int height) {
-    int cols = 4; // 桌面总列数
+    int cols = crossAxisCount; // 桌面总列数
     int maxGridY = 0;
     for (var tile in currentTiles) {
       if (tile.gridY + tile.heightCells > maxGridY) {
@@ -1479,27 +1479,26 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
       );
     }
 
-return AnimatedPositioned(
-         key: tile.key,
-         duration: Duration(milliseconds: isActuallyDragging ? 0 : 300),
-         curve: Curves.easeOutCubic,
-         left: left + gridSpacing / 2 - expandOffset,
-         top: top + gridSpacing / 2 - expandOffset,
-         child: SizedBox(
-           width: width + expandOffset * 2,
-           height: height + expandOffset * 2,
-           
-           // 🌟 核心：换上我们新写的微交互控制器！
-           child: TileInteractionAnimator(
-             isEditMode: isEditMode,
-             isSelected: isSelected,
-             child: tileContent,
-           ),
-           
-         ),
-       );
-     }
-   }
+    return AnimatedPositioned(
+      key: tile.key,
+      duration: Duration(milliseconds: isActuallyDragging ? 0 : 300),
+      curve: Curves.easeOutCubic,
+      left: left + gridSpacing / 2 - expandOffset,
+      top: top + gridSpacing / 2 - expandOffset,
+      child: SizedBox(
+        width: width + expandOffset * 2,
+        height: height + expandOffset * 2,
+
+        // 🌟 核心：换上我们新写的微交互控制器！
+        child: TileInteractionAnimator(
+          isEditMode: isEditMode,
+          isSelected: isSelected,
+          child: tileContent,
+        ),
+      ),
+    );
+  }
+}
 
 //动态磁贴大小预设
 enum LiveTileSize { small, medium, wide }
@@ -1626,27 +1625,30 @@ class _LiveTileState extends State<LiveTile>
 
   @override
   Widget build(BuildContext context) {
-    double width;
-    double height;
+    // 🌟 将变量重命名为标准画布尺寸，语义更清晰
+    double standardWidth;
+    double standardHeight;
 
     switch (widget.size) {
       case LiveTileSize.small:
-        width = 80;
-        height = 80;
+        standardWidth = 159 * 0.625 * 0.8;
+        standardHeight = 159 * 0.625 * 0.8;
         break;
       case LiveTileSize.medium:
-        width = 168;
-        height = 168;
+        standardWidth = 336 * 0.625 * 0.8;
+        standardHeight = 336 * 0.625 * 0.8;
         break;
       case LiveTileSize.wide:
-        width = 345.6; // 168 * 2 + 9.6
-        height = 168;
+        standardWidth = 691 * 0.625 * 0.8;
+        standardHeight = 336 * 0.625 * 0.8;
         break;
     }
 
+    // 最外层的 SizedBox 保留。当被放进 StartMenu (AnimatedPositioned) 时，
+    // 它会被父级的紧约束强行拉伸/挤压到网格的真实大小。
     return SizedBox(
-      width: width,
-      height: height,
+      width: standardWidth,
+      height: standardHeight,
       child: AnimatedBuilder(
         animation: _animation,
         builder: (context, child) {
@@ -1673,12 +1675,27 @@ class _LiveTileState extends State<LiveTile>
                 child: Transform(
                   transform: transform,
                   alignment: Alignment.center,
-                  // 🌟 去掉了 AnimatedOpacity，颜色直接应用到底层容器上
                   child: Container(
                     color: Theme.of(context).colorScheme.primary,
                     child: Stack(
                       children: [
-                        widget.children[index],
+                        // 🌟 核心修改点：
+                        // 给 children 包裹一层 FittedBox 和限定大小的 SizedBox
+                        // 这样它们会以为自己画在一个标准尺寸的画布上，然后再等比缩放到真实大小
+                        Positioned.fill(
+                          child: FittedBox(
+                            fit: BoxFit.contain, // 保证绝对不拉伸变形
+                            alignment: Alignment.center,
+                            child: SizedBox(
+                              width: standardWidth,
+                              height: standardHeight,
+                              child: widget.children[index],
+                            ),
+                          ),
+                        ),
+
+                        // 🌟 标题保持原样，置于 FittedBox 外部
+                        // 这样它不会受到等比缩放的影响，字体大小永远是 16，左边距永远是 10
                         if (widget.name != null &&
                             widget.size != LiveTileSize.small)
                           Positioned(
@@ -1902,11 +1919,12 @@ class TileInteractionAnimator extends StatefulWidget {
   });
 
   @override
-  State<TileInteractionAnimator> createState() => _TileInteractionAnimatorState();
+  State<TileInteractionAnimator> createState() =>
+      _TileInteractionAnimatorState();
 }
 
-class _TileInteractionAnimatorState extends State<TileInteractionAnimator> with TickerProviderStateMixin {
-  
+class _TileInteractionAnimatorState extends State<TileInteractionAnimator>
+    with TickerProviderStateMixin {
   // 控制流 1：物理按压
   late AnimationController _pressController;
   Timer? _pressTimer;
@@ -1939,10 +1957,10 @@ class _TileInteractionAnimatorState extends State<TileInteractionAnimator> with 
   @override
   void initState() {
     super.initState();
-    
+
     // 负责 0.0 到 1.0 的按压进度
     _pressController = AnimationController(vsync: this);
-    
+
     // 负责 0.0 到 2.0 的全局状态缩放
     _stateController = AnimationController(
       vsync: this,
@@ -1993,7 +2011,7 @@ class _TileInteractionAnimatorState extends State<TileInteractionAnimator> with 
   // ==========================================
   void _handlePointerDown(PointerDownEvent event) {
     _pressTimer?.cancel();
-    
+
     // 开启 200ms 倒计时，如果不松手，就开始执行 500ms 的缓慢放大
     _pressTimer = Timer(_pressDelay, () {
       _pressController.animateTo(1.0, duration: _pressDuration, curve: _pressCurve);
@@ -2025,13 +2043,12 @@ class _TileInteractionAnimatorState extends State<TileInteractionAnimator> with 
       child: AnimatedBuilder(
         animation: Listenable.merge([_pressController, _stateController]),
         builder: (context, child) {
-          
           // 1. 算出按压带来的额外比例（进度 0~1 映射到 1.0~1.05）
           double pressScale = 1.0 + ((_pressTargetScale - 1.0) * _pressController.value);
-          
+
           // 2. 算出逻辑状态带来的比例
           double stateScale = _stateController.value;
-          
+
           // 3. 物理乘算叠加。互不干扰！
           double finalScale = pressScale * stateScale;
 
@@ -2046,6 +2063,7 @@ class _TileInteractionAnimatorState extends State<TileInteractionAnimator> with 
     );
   }
 }
+
 class _EditButton extends StatefulWidget {
   final Widget icon;
   final VoidCallback onPressed;
