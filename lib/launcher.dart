@@ -1331,10 +1331,12 @@ class _StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
           duration: const Duration(milliseconds: 200),
           tween: Tween<double>(begin: 1.0, end: targetOpacity),
           builder: (context, opacityValue, child) {
-            // 🌟 盖上你写的终极 3D 摄像机透明度控件！
+            // 终极 3D 摄像机透明度控件
             return Opacity(
               opacity: opacityValue,
               child: GlobalPerspective(
+                // 阻止叠加涂层，只有触发透明度的时候系统才会把坐标拍扁
+                enabled: opacityValue != 1.0,
                 child: child!,
               ),
             );
@@ -2039,7 +2041,7 @@ class _TileInteractionAnimatorState extends State<TileInteractionAnimator>
       onPointerDown: _handlePointerDown,
       onPointerUp: _handlePointerUpOrCancel,
       onPointerCancel: _handlePointerUpOrCancel,
-      behavior: HitTestBehavior.opaque,
+      behavior: HitTestBehavior.deferToChild,
       child: AnimatedBuilder(
         animation: Listenable.merge([_pressController, _stateController]),
         builder: (context, child) {

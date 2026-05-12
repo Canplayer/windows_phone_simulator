@@ -3,13 +3,20 @@ import 'package:flutter/rendering.dart';
 
 /// 具有全局 3D 摄像机视角的透明度组件。
 /// 无论嵌套多深、滚动到哪里，其内部 3D 变换的消失点永远锁定在屏幕正中心。
-/// 妥协的产物,这个玩意儿本不应该诞生,但是flutter本身存在一些限制,导致我不得不写这个组件来实现我想要的效果。
-/// 这是个性能消耗有点不好看的组件,请谨慎使用。
+///
+/// ⚠️ 注意：
+/// 这是 Flutter 3D 体系限制下的 Hack 方案。
+/// 会引入额外 transform 开销，请谨慎使用。
 class GlobalPerspective extends SingleChildRenderObjectWidget {
-  final double perspectiveDepth; // 透视深度（Z轴缩放系数）
+  /// 是否启用透视修正
+  final bool enabled;
+
+  /// 透视深度（Z轴缩放系数）
+  final double perspectiveDepth;
 
   const GlobalPerspective({
     super.key,
+    this.enabled = true,
     this.perspectiveDepth = 0.000795,
     required super.child,
   });
@@ -17,6 +24,7 @@ class GlobalPerspective extends SingleChildRenderObjectWidget {
   @override
   RenderGlobalPerspective createRenderObject(BuildContext context) {
     return RenderGlobalPerspective(
+      enabled: enabled,
       perspectiveDepth: perspectiveDepth,
       screenSize: MediaQuery.of(context).size,
     );
@@ -24,30 +32,56 @@ class GlobalPerspective extends SingleChildRenderObjectWidget {
 
   @override
   void updateRenderObject(
-      BuildContext context, RenderGlobalPerspective renderObject) {
+    BuildContext context,
+    RenderGlobalPerspective renderObject,
+  ) {
     renderObject
+      ..enabled = enabled
       ..perspectiveDepth = perspectiveDepth
       ..screenSize = MediaQuery.of(context).size;
   }
 }
 
 class RenderGlobalPerspective extends RenderProxyBox {
+  bool _enabled;
   double _perspectiveDepth;
   Size _screenSize;
 
   RenderGlobalPerspective({
+    required bool enabled,
     required double perspectiveDepth,
     required Size screenSize,
     RenderBox? child,
-  })  : _perspectiveDepth = perspectiveDepth,
+  })  : _enabled = enabled,
+        _perspectiveDepth = perspectiveDepth,
         _screenSize = screenSize,
         super(child);
+
+  // =========================
+  // Enabled
+  // =========================
+
+  set enabled(bool value) {
+    if (_enabled == value) return;
+    _enabled = value;
+
+    // 只需要重绘，不需要重建 RenderObject
+    markNeedsPaint();
+  }
+
+  // =========================
+  // Perspective
+  // =========================
 
   set perspectiveDepth(double value) {
     if (_perspectiveDepth == value) return;
     _perspectiveDepth = value;
     markNeedsPaint();
   }
+
+  // =========================
+  // Screen Size
+  // =========================
 
   set screenSize(Size value) {
     if (_screenSize == value) return;
@@ -57,34 +91,44 @@ class RenderGlobalPerspective extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    // 直接透传，不注入 transform
+    if (!_enabled) {
+      super.paint(context, offset);
+      return;
+    }
+
     // 1. 获取屏幕中心物理坐标
     final Offset globalScreenCenter =
         Offset(_screenSize.width / 2, _screenSize.height / 2);
 
-    // 2. 转换为组件的局部坐标系
+    // 2. 转换为组件局部坐标
     final Offset localScreenCenter = globalToLocal(globalScreenCenter);
 
-    // 🌟 3. 核心修正：计算出动态的 FractionalOffset (相对偏移比例)
-    // 假设组件宽 100，屏幕中心点在组件内部的 X 是 50，那 offset 就是 0.5
-    // 假设屏幕中心点在组件外部左侧的 X 是 -100，那 offset 就是 -1.0
+    // 3. 计算相对偏移
     final double dxFraction =
         size.width == 0 ? 0.5 : localScreenCenter.dx / size.width;
+
     final double dyFraction =
         size.height == 0 ? 0.5 : localScreenCenter.dy / size.height;
 
-    // 4. 计算为了对齐这个点，矩阵需要做的绝对位移
-    // 这等同于 Transform(alignment: FractionalOffset(dx, dy)) 的底层数学逻辑
+    // 4. 计算 transform origin
     final double originX = dxFraction * size.width;
     final double originY = dyFraction * size.height;
 
-    // 5. 构建完美的 3D 透视矩阵
-    // 数学原理：先把画布推向对齐点 (origin)，应用透视，再把画布拉回来
-    Matrix4 perspectiveMatrix = Matrix4.identity()
-      ..translateByDouble(originX, originY, 0.0, 1.0) // 补全到 4 个参数
-      ..multiply(Matrix4.identity()..setEntry(3, 2, _perspectiveDepth))
-      ..translateByDouble(-originX, -originY, 0.0, 1.0); // 补全到 4 个参数
+    // 5. 构建透视矩阵
+    final Matrix4 perspectiveMatrix = Matrix4.identity()
+      ..translateByDouble(originX, originY, 0.0, 1.0)
+      ..multiply(
+        Matrix4.identity()..setEntry(3, 2, _perspectiveDepth),
+      )
+      ..translateByDouble(-originX, -originY, 0.0, 1.0);
 
+    // 6. 推入变换
     context.pushTransform(
-        needsCompositing, offset, perspectiveMatrix, super.paint);
+      needsCompositing,
+      offset,
+      perspectiveMatrix,
+      super.paint,
+    );
   }
 }
