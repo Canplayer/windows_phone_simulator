@@ -528,9 +528,11 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
     }
   }
 
-  // --- 🌟 完美移植：网格碰撞推挤引擎 ---
-  void _updatePreview(int targetX, int targetY) {
-    if (originalItems == null || draggingTileId == null) return;
+  /// 碰撞推挤计算（纯计算，不调 setState）
+  ///
+  /// 返回推挤后的新布局列表，若无需推挤则返回 `null`。
+  List<TileModel>? _computePreview(int targetX, int targetY) {
+    if (originalItems == null || draggingTileId == null) return null;
 
     Offset? currentPixelOffset;
     try {
@@ -538,7 +540,7 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
           .firstWhere((e) => e.instanceId == draggingTileId)
           .dragPixelOffset;
     } catch (e) {
-      return;
+      return null;
     }
 
     List<TileModel> nextLayout = originalItems!.map((e) => e.clone()).toList();
@@ -696,22 +698,32 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
       }
     }
 
-    setState(() {
-      tiles = nextLayout;
-    });
+    return nextLayout;
   }
 
+  /// 碰撞推挤并刷新 UI（包含 setState）
+  void _updatePreview(int targetX, int targetY) {
+    final nextLayout = _computePreview(targetX, targetY);
+    if (nextLayout != null) {
+      setState(() {
+        tiles = nextLayout;
+      });
+    }
+  }
+
+  /// 整理布局（纯计算，不调 setState）
+  ///
+  /// 注意：此方法假设 [tiles] 非空，调用前请自行判空。
   void _finalizeLayout() {
-    setState(() {
-      int minY = tiles.map((e) => e.gridY).reduce((a, b) => a < b ? a : b);
-      if (minY < 0) {
-        int offset = minY.abs();
-        for (var item in tiles) {
-          item.gridY += offset;
-        }
+    // 只做计算，不套 setState —— 由外层业务方统一调用 setState
+    final minY = tiles.map((e) => e.gridY).reduce((a, b) => a < b ? a : b);
+    if (minY < 0) {
+      final offset = minY.abs();
+      for (final item in tiles) {
+        item.gridY += offset;
       }
-      _compactLayout(tiles);
-    });
+    }
+    _compactLayout(tiles);
   }
 
   void _compactLayout(List<TileModel> allItems) {
@@ -1084,13 +1096,12 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
                 onPressed: () {
                   setState(() {
                     tiles.removeWhere((t) => t.instanceId == tile.instanceId);
-                    _finalizeLayout();
-
-                    _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
 
                     if (tiles.isEmpty) {
                       exitEditMode();
                     } else {
+                      _finalizeLayout();
+                      _baseLayoutSnapshot = tiles.map((e) => e.clone()).toList();
                       selectedTileId = null;
                     }
                   });
@@ -1145,7 +1156,13 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
                     draggingTileId = activeTile.instanceId;
                     originalItems = tiles.map((e) => e.clone()).toList();
 
-                    _updatePreview(activeTile.gridX, activeTile.gridY);
+                    // 使用纯计算版本，避免嵌套 setState
+                    final preview = _computePreview(
+                        activeTile.gridX, activeTile.gridY);
+                    if (preview != null) {
+                      tiles = preview;
+                    }
+
                     _finalizeLayout();
 
                     draggingTileId = null;

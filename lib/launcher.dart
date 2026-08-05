@@ -4,6 +4,7 @@ import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
 import 'package:windows_phone_simulator/about.dart';
+import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
 class LauncherPage extends StatefulWidget {
@@ -22,111 +23,122 @@ class _LauncherPageState extends State<LauncherPage>
 
   late List<TileModel> _pinnedTiles;
 
-  List<App> get apps => [
-        App(
-          id: 'com.ms.weather',
-          name: '天气',
-          themeColor: Colors.blue,
-          icon: const Icon(Icons.wb_sunny),
-          page: const Splashscreen(),
-          smallTile: const LiveTile(
-              name: Text('天气'),
-              size: LiveTileSize.small,
-              flipStyle: FlipStyle.elastic,
-              children: [
-                MetroAppTile(
-                    icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-              ]),
-          mediumTile: const LiveTile(
-            size: LiveTileSize.medium,
+  /// 所有已注册的应用（来自 [AppRegistry]）
+  List<App> get apps => AppRegistry().apps;
+
+  /// 注册内置应用（天气、关于等）
+  /// 应用可以在自己的文件中通过 [AppRegistry().register()] 自注册，
+  /// 无需修改此文件。
+  void _registerBuiltinApps() {
+    AppRegistry()
+      ..register(App(
+        id: 'com.ms.weather',
+        name: '天气',
+        themeColor: Colors.blue,
+        icon: const Icon(Icons.wb_sunny),
+        page: const Splashscreen(),
+        smallTile: const LiveTile(
+            name: Text('天气'),
+            size: LiveTileSize.small,
+            flipStyle: FlipStyle.elastic,
+            children: [
+              MetroAppTile(
+                  icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+            ]),
+        mediumTile: const LiveTile(
+          size: LiveTileSize.medium,
+          flipStyle: FlipStyle.elastic,
+          name: Text('Panorama'),
+          children: [
+            MetroAppTile(
+              icon: Icon(
+                Icons.map,
+                size: 70,
+              ),
+              count: 2,
+            ),
+            Padding(
+              padding: EdgeInsets.all(10),
+              child: Text(
+                'Panorama Hub页面，具有浓郁的WP特色',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        wideTile: const LiveTile(
+            size: LiveTileSize.wide,
             flipStyle: FlipStyle.elastic,
             name: Text('Panorama'),
             children: [
               MetroAppTile(
-                icon: Icon(
-                  Icons.map,
-                  size: 70,
-                ),
-                count: 2,
+                  icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Icon(Icons.wb_sunny, color: Colors.white, size: 40),
+                  Text('新北市板桥区\n晴天 24°C',
+                      style: TextStyle(color: Colors.white)),
+                ],
               ),
-              Padding(
-                padding: EdgeInsets.all(10),
-                child: Text(
-                  'Panorama Hub页面，具有浓郁的WP特色',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-            ],
-          ),
-          wideTile: const LiveTile(
-              size: LiveTileSize.wide,
-              flipStyle: FlipStyle.elastic,
-              name: Text('Panorama'),
-              children: [
-                MetroAppTile(
-                    icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-                Row(
-                  // 宽磁贴可以放更多信息
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Icon(Icons.wb_sunny, color: Colors.white, size: 40),
-                    Text('新北市板桥区\n晴天 24°C',
-                        style: TextStyle(color: Colors.white)),
-                  ],
-                ),
-              ]),
-        ),
-        App(
-          id: 'com.ms.about',
-          name: '关于',
-          themeColor: Colors.blue,
-          icon: const Icon(Icons.info),
-          page: const AboutPage(),
-          smallTile: const LiveTile(
-              size: LiveTileSize.small,
-              flipStyle: FlipStyle.elastic,
-              children: [
-                MetroAppTile(
-                    icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-              ]),
-          mediumTile: const LiveTile(
-            size: LiveTileSize.medium,
+            ]),
+      ))
+      ..register(App(
+        id: 'com.ms.about',
+        name: '关于',
+        themeColor: Colors.blue,
+        icon: const Icon(Icons.info),
+        page: const AboutPage(),
+        smallTile: const LiveTile(
+            size: LiveTileSize.small,
             flipStyle: FlipStyle.elastic,
-            name: Text('关于'),
             children: [
               MetroAppTile(
-                icon: Icon(
-                  Icons.map,
-                  size: 70,
-                ),
-                count: 2,
+                  icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+            ]),
+        mediumTile: const LiveTile(
+          size: LiveTileSize.medium,
+          flipStyle: FlipStyle.elastic,
+          name: Text('关于'),
+          children: [
+            MetroAppTile(
+              icon: Icon(
+                Icons.map,
+                size: 70,
               ),
-              Padding(
-                padding: EdgeInsets.all(10),
-                child: Text(
-                  '关于页面',
-                  style: TextStyle(fontSize: 18),
-                ),
+              count: 2,
+            ),
+            Padding(
+              padding: EdgeInsets.all(10),
+              child: Text(
+                '关于页面',
+                style: TextStyle(fontSize: 18),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ];
+      ));
+  }
 
   @override
   void initState() {
     super.initState();
-    //打印设备屏幕宽度
 
-    _pinnedTiles = [
-      TileModel(
-        instanceId: 'weather_1',
-        app: apps[0],
-        currentSize: TileSize.medium,
-        gridX: 0,
-        gridY: 0,
-      ),
-    ];
+    // 注册内置应用
+    _registerBuiltinApps();
+
+    final allApps = AppRegistry().apps;
+    _pinnedTiles = allApps.isNotEmpty
+        ? [
+            TileModel(
+              instanceId: '${allApps[0].id}_1',
+              app: allApps[0],
+              currentSize: TileSize.medium,
+              gridX: 0,
+              gridY: 0,
+            ),
+          ]
+        : [];
   }
 
   /// 判断组件是否在屏幕可见范围内
