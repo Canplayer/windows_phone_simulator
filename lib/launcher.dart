@@ -2,8 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
-import 'package:windows_phone_simulator/splashscreen_page.dart';
-import 'package:windows_phone_simulator/about.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -30,94 +28,42 @@ class _LauncherPageState extends State<LauncherPage>
   /// 应用可以在自己的文件中通过 [AppRegistry().register()] 自注册，
   /// 无需修改此文件。
   void _registerBuiltinApps() {
-    AppRegistry()
-      ..register(App(
-        id: 'com.ms.weather',
-        name: '天气',
-        themeColor: Colors.blue,
-        icon: const Icon(Icons.wb_sunny),
-        page: const Splashscreen(),
-        smallTile: const LiveTile(
-            name: Text('天气'),
-            size: LiveTileSize.small,
-            flipStyle: FlipStyle.elastic,
-            children: [
-              MetroAppTile(
-                  icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-            ]),
-        mediumTile: const LiveTile(
-          size: LiveTileSize.medium,
-          flipStyle: FlipStyle.elastic,
-          name: Text('Panorama'),
-          children: [
-            MetroAppTile(
-              icon: Icon(
-                Icons.map,
-                size: 70,
-              ),
-              count: 2,
-            ),
-            Padding(
-              padding: EdgeInsets.all(10),
-              child: Text(
-                'Panorama Hub页面，具有浓郁的WP特色',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        wideTile: const LiveTile(
-            size: LiveTileSize.wide,
-            flipStyle: FlipStyle.elastic,
-            name: Text('Panorama'),
-            children: [
-              MetroAppTile(
-                  icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Icon(Icons.wb_sunny, color: Colors.white, size: 40),
-                  Text('新北市板桥区\n晴天 24°C',
-                      style: TextStyle(color: Colors.white)),
-                ],
-              ),
-            ]),
-      ))
-      ..register(App(
-        id: 'com.ms.about',
-        name: '关于',
-        themeColor: Colors.blue,
-        icon: const Icon(Icons.info),
-        page: const AboutPage(),
-        smallTile: const LiveTile(
-            size: LiveTileSize.small,
-            flipStyle: FlipStyle.elastic,
-            children: [
-              MetroAppTile(
-                  icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
-            ]),
-        mediumTile: const LiveTile(
-          size: LiveTileSize.medium,
-          flipStyle: FlipStyle.elastic,
-          name: Text('关于'),
-          children: [
-            MetroAppTile(
-              icon: Icon(
-                Icons.map,
-                size: 70,
-              ),
-              count: 2,
-            ),
-            Padding(
-              padding: EdgeInsets.all(10),
-              child: Text(
-                '关于页面',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-      ));
+    // AppRegistry()
+    //   ..register(App(
+    //     id: 'com.ms.about',
+    //     name: '关于',
+    //     themeColor: Colors.blue,
+    //     icon: const Icon(Icons.info),
+    //     page: const AboutPage(),
+    //     smallTile: const LiveTile(
+    //         size: LiveTileSize.small,
+    //         flipStyle: FlipStyle.elastic,
+    //         children: [
+    //           MetroAppTile(
+    //               icon: Icon(Icons.wb_sunny, color: Colors.white, size: 24)),
+    //         ]),
+    //     mediumTile: const LiveTile(
+    //       size: LiveTileSize.medium,
+    //       flipStyle: FlipStyle.elastic,
+    //       name: Text('关于'),
+    //       children: [
+    //         MetroAppTile(
+    //           icon: Icon(
+    //             Icons.map,
+    //             size: 70,
+    //           ),
+    //           count: 2,
+    //         ),
+    //         Padding(
+    //           padding: EdgeInsets.all(10),
+    //           child: Text(
+    //             '关于页面',
+    //             style: TextStyle(fontSize: 18),
+    //           ),
+    //         ),
+    //       ],
+    //     ),
+    //   ));
   }
 
   @override
@@ -227,17 +173,38 @@ class _LauncherPageState extends State<LauncherPage>
                                       _startMenuKey.currentState?.pinApp(app);
                                     },
                                   ),
-                                  child: ListTile(
-                                    leading: Container(
-                                      width: 48,
-                                      height: 48,
-                                      color: app.themeColor,
-                                      child: app.icon,
-                                    ),
-                                    title: Text(
-                                      app.name,
-                                      style: const TextStyle(
-                                          color: Colors.white, fontSize: 24),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        // 应用图标块
+                                        // 注意：Container 的 48×48 是紧约束，会强制拉伸
+                                        // child 填满（SvgPicture 的 height 会被覆盖）。
+                                        // 用 Align 提供宽松约束，让图标保持自身尺寸居中。
+                                        Container(
+                                          width: 48,
+                                          height: 48,
+                                          color: app.themeColor ??
+                                              Theme.of(context).primaryColor,
+                                          child: Align(
+                                            alignment: Alignment.center,
+                                            child: app.icon,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        // 应用名称
+                                        Expanded(
+                                          child: Text(
+                                            app.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 24),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 );

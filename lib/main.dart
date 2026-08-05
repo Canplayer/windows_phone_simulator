@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:metro_ui/app.dart';
 import 'package:metro_ui/metro_scroll_behavior.dart';
+import 'package:windows_phone_simulator/apps/about/about.dart';
+import 'package:windows_phone_simulator/apps/phone/phone.dart';
 import 'package:windows_phone_simulator/demo_page.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
 
@@ -9,7 +11,8 @@ void main() {
   // 其他页面只需在自己的文件中定义静态 register() 方法，
   // 然后在这里调用即可，无需修改 launcher.dart。
   DemoPage.register();
-
+  AboutPage.register();
+  PhoneApp.register();
   runApp(const MyApp());
 }
 

@@ -29,7 +29,7 @@ class App {
   final Widget mediumTile; // 2x2 磁贴组件 (必须)
   final Widget? wideTile; // 4x2 磁贴组件 (可选)
 
-  final Color themeColor; // 应用主题色 (用于磁贴背景底色等)
+  final Color? themeColor; // 应用主题色 (用于磁贴背景底色等)
 
   App({
     required this.id,
@@ -39,7 +39,7 @@ class App {
     required this.smallTile,
     required this.mediumTile,
     this.wideTile, // 宽磁贴可选
-    required this.themeColor,
+    this.themeColor,
   });
 
   // 提供一个便捷方法：根据尺寸获取对应的磁贴 UI
