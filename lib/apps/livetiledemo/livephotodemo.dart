@@ -8,12 +8,12 @@ import 'package:windows_phone_simulator/start_menu.dart';
 /// 自驱动的 Phone 磁贴：不关心外界的创建/销毁，
 /// 挂载后即按时间轴自由切换磁贴内容（文字、图片、动画、组合……），
 /// 卸载时自动停止。内容更新完全由 [ValueListenableBuilder] 驱动，不受任何限制。
-class LivePhotoDemoLiveTile extends StatefulWidget {
+class CustomTileDemo extends StatefulWidget {
   final LiveTileSize size;
   final Widget? name;
   final double iconHeight;
 
-  const LivePhotoDemoLiveTile({
+  const CustomTileDemo({
     super.key,
     required this.size,
     this.name,
@@ -21,10 +21,10 @@ class LivePhotoDemoLiveTile extends StatefulWidget {
   });
 
   @override
-  State<LivePhotoDemoLiveTile> createState() => _LivePhotoDemoLiveTileState();
+  State<CustomTileDemo> createState() => _CustomTileDemoState();
 }
 
-class _LivePhotoDemoLiveTileState extends State<LivePhotoDemoLiveTile> {
+class _CustomTileDemoState extends State<CustomTileDemo> {
   /// 磁贴内容：可以是任意 Widget（文字、图片、动画、组合……）
   /// 任何地方改动 `.value`，磁贴立即重建显示新内容。
   late final ValueNotifier<Widget> _content;
@@ -32,57 +32,59 @@ class _LivePhotoDemoLiveTileState extends State<LivePhotoDemoLiveTile> {
   @override
   void initState() {
     super.initState();
-    _content = ValueNotifier<Widget>(LivePhotoDemoApp.appIcon(widget.iconHeight));
+    _content = ValueNotifier<Widget>(CustomTileDemoApp.appIcon(widget.iconHeight));
     _playContentSequence();
   }
 
-  /// 演示时间轴：等 2s → 文字 →(0.5s)→ 图片 →(0.5s)→ 动画 →(等 1s)→ 组合 →(等 2s)→ 还原。
-  /// 每步之后检查 mounted，组件卸载时后续步骤自动作废。
+  /// 演示时间轴（循环播放）：等 2s → 文字 →(0.5s)→ 图片 →(0.5s)→ 动画 →(等 1s)→ 组合 →(等 2s)→ 还原，然后从头循环。
+  /// 每步之后检查 mounted，组件卸载时循环自动结束。
   Future<void> _playContentSequence() async {
-    // 等 2 秒才开始变化
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    _content.value = const Center(
-      child: Text(
-        'NEW!',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 40,
-          fontWeight: FontWeight.bold,
+    while (mounted) {
+      // 等 2 秒才开始变化
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      _content.value = const Center(
+        child: Text(
+          'NEW!',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 40,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-    );
+      );
 
-    // 0.5s 后：换成图片（SVG 图标）
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    _content.value = LivePhotoDemoApp.appIcon(widget.iconHeight);
+      // 0.5s 后：换成图片（SVG 图标）
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      _content.value = CustomTileDemoApp.appIcon(widget.iconHeight);
 
-    // 0.5s 后：换成动画（自转图标）
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    _content.value = const _SpinningIcon();
+      // 0.5s 后：换成动画（自转图标）
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      _content.value = const _SpinningIcon();
 
-    // 等 1s：换成组合内容（图标 + 文字）
-    await Future<void>.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    _content.value = Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        LivePhotoDemoApp.appIcon(widget.iconHeight * 0.7),
-        const SizedBox(height: 8),
-        const Text(
-          'Phone',
-          style: TextStyle(color: Colors.white, fontSize: 20),
-        ),
-      ],
-    );
+      // 等 1s：换成组合内容（图标 + 文字）
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+      _content.value = Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CustomTileDemoApp.appIcon(widget.iconHeight * 0.7),
+          const SizedBox(height: 8),
+          const Text(
+            'Phone',
+            style: TextStyle(color: Colors.white, fontSize: 20),
+          ),
+        ],
+      );
 
-    // 再等 2s：还原为静态图标，结束
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    _content.value = LivePhotoDemoApp.appIcon(widget.iconHeight);
+      // 再等 2s：还原为静态图标，然后进入下一轮循环
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      _content.value = CustomTileDemoApp.appIcon(widget.iconHeight);
+    }
   }
 
   @override
@@ -140,13 +142,13 @@ class _SpinningIconState extends State<_SpinningIcon>
   Widget build(BuildContext context) {
     return RotationTransition(
       turns: _controller,
-      child: LivePhotoDemoApp.appIcon(64),
+      child: CustomTileDemoApp.appIcon(64),
     );
   }
 }
 
-class LivePhotoDemoApp extends StatefulWidget {
-  const LivePhotoDemoApp({super.key});
+class CustomTileDemoApp extends StatefulWidget {
+  const CustomTileDemoApp({super.key});
 
   // ─── 图标模板 ─────────────────────────────────
   // 以“高度”为基准等比缩放：传目标高度即可，宽度按 SVG 宽高比自动计算。
@@ -170,24 +172,24 @@ class LivePhotoDemoApp extends StatefulWidget {
       name: 'Live Photo Demo',
       //themeColor: Colors.purple,
       icon: appIcon(32), // 应用列表图标
-      page: const LivePhotoDemoApp(),
-      smallTile: LivePhotoDemoLiveTile(
+      page: const CustomTileDemoApp(),
+      smallTile: const CustomTileDemo(
         size: LiveTileSize.small,
         iconHeight: 36, // 小磁贴：画布 79.5px，占比约 45%
       ),
-      mediumTile: LivePhotoDemoLiveTile(
+      mediumTile: const CustomTileDemo(
         size: LiveTileSize.medium,
-        name: const Text('Live Photo Demo'),
+        name:  Text('Live Photo Demo'),
         iconHeight: 72, // 中磁贴：画布 168px，占比约 43%
       ),
     ));
   }
 
   @override
-  State<LivePhotoDemoApp> createState() => _LivePhotoDemoAppState();
+  State<CustomTileDemoApp> createState() => _CustomTileDemoAppState();
 }
 
-class _LivePhotoDemoAppState extends State<LivePhotoDemoApp> {
+class _CustomTileDemoAppState extends State<CustomTileDemoApp> {
   @override
   void initState() {
     super.initState();

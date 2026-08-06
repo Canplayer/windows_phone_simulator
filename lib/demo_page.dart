@@ -55,13 +55,13 @@ class DemoPage extends StatefulWidget {
 class _DemoPageState extends State<DemoPage> {
   @override
   Widget build(BuildContext context) {
-    return MetroPageScaffold(
+    return const MetroPageScaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.explore, size: 80, color: Colors.white70),
-            const SizedBox(height: 20),
+            Icon(Icons.explore, size: 80, color: Colors.white70),
+            SizedBox(height: 20),
             Text(
               'Demo 页面',
               style: TextStyle(
@@ -70,12 +70,12 @@ class _DemoPageState extends State<DemoPage> {
                 fontWeight: FontWeight.w300,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               '此页面通过 AppRegistry 自注册到开始菜单',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white,
               ),
             ),
           ],
