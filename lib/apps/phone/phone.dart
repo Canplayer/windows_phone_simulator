@@ -3,6 +3,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/widgets/swipe_page_view.dart';
+import 'package:metro_ui/widgets/swipe_title_indicator.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -145,7 +147,7 @@ class _PhoneAppState extends State<PhoneApp> {
       stackPanel: const StackPanel(
         top: Text('CHINA UNICOM'),
         //通话记录
-        bottom: Text('history'),
+        //bottom: Text('history'),
       ),
       applicationBar:
           MetroApplicationBar(backgroundColor: Colors.grey[900], buttons: [
@@ -158,7 +160,7 @@ class _PhoneAppState extends State<PhoneApp> {
               BlendMode.srcIn,
             ),
           ),
-          label: 'new',
+          label: 'voicemail',
           onPressed: () {},
         ),
         MetroAppBarButton(
@@ -170,7 +172,7 @@ class _PhoneAppState extends State<PhoneApp> {
               BlendMode.srcIn,
             ),
           ),
-          label: 'new',
+          label: 'keypad',
           onPressed: () {},
         ),
         MetroAppBarButton(
@@ -182,7 +184,7 @@ class _PhoneAppState extends State<PhoneApp> {
               BlendMode.srcIn,
             ),
           ),
-          label: 'new',
+          label: 'people',
           onPressed: () {},
         ),
         MetroAppBarButton(
@@ -194,39 +196,35 @@ class _PhoneAppState extends State<PhoneApp> {
               BlendMode.srcIn,
             ),
           ),
-          label: 'new',
+          label: 'search',
           onPressed: () {},
         ),
       ], menuItems: [
         MetroAppBarMenuItem(
-          label: 'new',
+          label: 'delete all',
+          onPressed: () {},
+        ),
+        MetroAppBarMenuItem(
+          label: 'settings',
+          onPressed: () {},
+        ),
+        MetroAppBarMenuItem(
+          label: 'blocked calls',
           onPressed: () {},
         ),
       ]),
       body: Builder(
         // 使用 Builder 来获取正确的 context
         builder: (scaffoldContext) {
-          return const Column(
-            children: <Widget>[
-              SizedBox(height: 20),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 19.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '''hello world''',
-                            style: TextStyle(fontSize: 20),
-                          ),
-                        ]),
-                  ),
-                ),
-              ),
-            ],
-          );
+          return Padding(
+              padding: EdgeInsetsGeometry.symmetric(horizontal: 18),
+              child: SwipePages(
+                items: [
+                  SwipePageItem(title: Text('system'), page: Text("data")),
+                  SwipePageItem(
+                      title: Text('applications'), page: Text("data")),
+                ],
+              ));
         },
       ),
     );
