@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
@@ -142,9 +143,66 @@ class _PhoneAppState extends State<PhoneApp> {
     return MetroPageScaffold(
       //backgroundColor: Colors.blueGrey,
       stackPanel: const StackPanel(
-        top: Text('FLUMETRO'),
-        bottom: Text('about'),
+        top: Text('CHINA UNICOM'),
+        //通话记录
+        bottom: Text('history'),
       ),
+      applicationBar:
+          MetroApplicationBar(backgroundColor: Colors.grey[900], buttons: [
+        MetroAppBarButton(
+          icon: SvgPicture.asset(
+            'images/icons/phone_1.svg',
+            fit: BoxFit.contain,
+            colorFilter: const ColorFilter.mode(
+              Colors.white,
+              BlendMode.srcIn,
+            ),
+          ),
+          label: 'new',
+          onPressed: () {},
+        ),
+        MetroAppBarButton(
+          icon: SvgPicture.asset(
+            'images/icons/phone_2.svg',
+            fit: BoxFit.contain,
+            colorFilter: const ColorFilter.mode(
+              Colors.white,
+              BlendMode.srcIn,
+            ),
+          ),
+          label: 'new',
+          onPressed: () {},
+        ),
+        MetroAppBarButton(
+          icon: SvgPicture.asset(
+            'images/icons/phone_3.svg',
+            fit: BoxFit.contain,
+            colorFilter: const ColorFilter.mode(
+              Colors.white,
+              BlendMode.srcIn,
+            ),
+          ),
+          label: 'new',
+          onPressed: () {},
+        ),
+        MetroAppBarButton(
+          icon: SvgPicture.asset(
+            'images/icons/phone_4.svg',
+            fit: BoxFit.contain,
+            colorFilter: const ColorFilter.mode(
+              Colors.white,
+              BlendMode.srcIn,
+            ),
+          ),
+          label: 'new',
+          onPressed: () {},
+        ),
+      ], menuItems: [
+        MetroAppBarMenuItem(
+          label: 'new',
+          onPressed: () {},
+        ),
+      ]),
       body: Builder(
         // 使用 Builder 来获取正确的 context
         builder: (scaffoldContext) {

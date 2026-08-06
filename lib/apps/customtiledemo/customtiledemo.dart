@@ -279,7 +279,7 @@ class _HueTextState extends State<_HueText>
               fontWeight: FontWeight.bold,
               shadows: [
                 Shadow(color: color, blurRadius: 24),
-                Shadow(color: Colors.white54, blurRadius: 6),
+                const Shadow(color: Colors.white54, blurRadius: 6),
               ],
             ),
           );
@@ -446,7 +446,7 @@ class _OrbitingIconsState extends State<_OrbitingIcons>
         animation: _controller,
         builder: (context, _) {
           final angle = _controller.value * 2 * math.pi;
-          final radius = 26.0;
+          const radius = 26.0;
           final hueA = (_controller.value * 720) % 360;
           final hueB = (hueA + 180) % 360;
           return Stack(
