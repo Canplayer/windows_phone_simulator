@@ -1,7 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:metro_ui/metro_page_push.dart';
+import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
+import 'package:metro_ui/widgets/tile.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -18,6 +21,9 @@ class _LauncherPageState extends State<LauncherPage>
     with TickerProviderStateMixin {
   bool _isEditMode = false; // 是否处于编辑模式
   final GlobalKey<StartMenuState> _startMenuKey = GlobalKey<StartMenuState>();
+
+  final GlobalKey<MetroPageScaffoldState> _scaffoldKey =
+      GlobalKey<MetroPageScaffoldState>();
 
   late List<TileModel> _pinnedTiles;
 
@@ -95,6 +101,7 @@ class _LauncherPageState extends State<LauncherPage>
   @override
   Widget build(BuildContext context) {
     return MetroPageScaffold(
+      key: _scaffoldKey,
       onDidPushNext: <T>(T data) async {
         if (data is String) {
           await _startMenuKey.currentState?.startPushNextAnimations(data);
@@ -173,38 +180,51 @@ class _LauncherPageState extends State<LauncherPage>
                                       _startMenuKey.currentState?.pinApp(app);
                                     },
                                   ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 12),
-                                    child: Row(
-                                      children: [
-                                        // 应用图标块
-                                        // 注意：Container 的 48×48 是紧约束，会强制拉伸
-                                        // child 填满（SvgPicture 的 height 会被覆盖）。
-                                        // 用 Align 提供宽松约束，让图标保持自身尺寸居中。
-                                        Container(
-                                          width: 48,
-                                          height: 48,
-                                          color: app.themeColor ??
-                                              Theme.of(context).primaryColor,
-                                          child: Align(
-                                            alignment: Alignment.center,
-                                            child: app.icon,
+                                  child: Tile(
+                                    onTap: () {
+                                      metroPagePush(context, MetroPageRoute(
+                                        builder: (context) {
+                                          return app.page;
+                                        },
+                                      ), scaffoldKey: _scaffoldKey
+                                          //提供一种便利的方法，可以将范型参数传递给onDidPushNext，主要设计目的是为了方便动画传参
+                                          //例如：Windows Phone中，被点击的Tile往往是最后一个飞出的，可能需要把Tile的index传递过去，然后在onDidPushNext中处理动画
+                                          //dataToPass: index,
+                                          );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      child: Row(
+                                        children: [
+                                          // 应用图标块
+                                          // 注意：Container 的 48×48 是紧约束，会强制拉伸
+                                          // child 填满（SvgPicture 的 height 会被覆盖）。
+                                          // 用 Align 提供宽松约束，让图标保持自身尺寸居中。
+                                          Container(
+                                            width: 48,
+                                            height: 48,
+                                            color: app.themeColor ??
+                                                Theme.of(context).primaryColor,
+                                            child: Align(
+                                              alignment: Alignment.center,
+                                              child: app.icon,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        // 应用名称
-                                        Expanded(
-                                          child: Text(
-                                            app.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 24),
+                                          const SizedBox(width: 16),
+                                          // 应用名称
+                                          Expanded(
+                                            child: Text(
+                                              app.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 24),
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );

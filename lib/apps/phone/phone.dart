@@ -5,6 +5,90 @@ import 'package:metro_ui/widgets/stack_panel.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
+/// 自驱动的 Phone 磁贴：不关心外界的创建/销毁，
+/// 挂载到屏幕上即开始播放角标时序：等 2s → 1 → 2 → 3 → 4 → 5，卸载时自动停止。
+/// 每个磁贴实例持有自己的角标与时序任务，互不干扰。
+class PhoneLiveTile extends StatefulWidget {
+  final LiveTileSize size;
+  final Widget? name;
+  final Widget icon;
+
+  const PhoneLiveTile({
+    super.key,
+    required this.size,
+    required this.icon,
+    this.name,
+  });
+
+  @override
+  State<PhoneLiveTile> createState() => _PhoneLiveTileState();
+}
+
+class _PhoneLiveTileState extends State<PhoneLiveTile> {
+  /// 磁贴内容（可以是任意 Widget：文字、图片、动画、组合……）
+  late final ValueNotifier<Widget> _content;
+
+  @override
+  void initState() {
+    super.initState();
+    _content = ValueNotifier<Widget>(widget.icon);
+    _playBadgeSequence();
+  }
+
+  /// 角标动画
+  Future<void> _playBadgeSequence() async {
+    // 等 2 秒才开始计数
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    _content.value = _buildBadge(1);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    _content.value = _buildBadge(2);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    _content.value = _buildBadge(3);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    _content.value = _buildBadge(4);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    _content.value = _buildBadge(5);
+  }
+
+  /// 数字角标：SVG 图标 + 角标数字
+  Widget _buildBadge(int number) {
+    return MetroAppTile(
+      icon: widget.icon, // 直接用传入的 SVG 图标
+      count: number, // 角标数字
+    );
+  }
+
+  @override
+  void dispose() {
+    _content.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 注意：ValueListenableBuilder 只包内容，不包 LiveTile 本体，
+    // 这样 LiveTile 的 3D 翻转动画 State 保持稳定，不会因内容更新而重置。
+    return LiveTile(
+      size: widget.size,
+      flipStyle: FlipStyle.elastic,
+      name: widget.name,
+      children: [
+        ValueListenableBuilder<Widget>(
+          valueListenable: _content,
+          builder: (context, content, _) {
+            return MetroAppTile(icon: content);
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class PhoneApp extends StatefulWidget {
   const PhoneApp({super.key});
 
@@ -31,24 +115,14 @@ class PhoneApp extends StatefulWidget {
       //themeColor: Colors.purple,
       icon: appIcon(32), // 应用列表图标
       page: const PhoneApp(),
-      smallTile: LiveTile(
+      smallTile: PhoneLiveTile(
         size: LiveTileSize.small,
-        flipStyle: FlipStyle.elastic,
-        children: [
-          MetroAppTile(
-            icon: appIcon(36), // 小磁贴：画布 79.5px，占比约 45%
-          ),
-        ],
+        icon: appIcon(36), // 小磁贴：画布 79.5px，占比约 45%
       ),
-      mediumTile: LiveTile(
+      mediumTile: PhoneLiveTile(
         size: LiveTileSize.medium,
-        flipStyle: FlipStyle.elastic,
         name: const Text('Phone'),
-        children: [
-          MetroAppTile(
-            icon: appIcon(72), // 中磁贴：画布 168px，占比约 43%
-          ),
-        ],
+        icon: appIcon(72), // 中磁贴：画布 168px，占比约 43%
       ),
     ));
   }
@@ -76,16 +150,16 @@ class _PhoneAppState extends State<PhoneApp> {
         builder: (scaffoldContext) {
           return const Column(
             children: <Widget>[
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 19.0),
+                  padding: EdgeInsets.symmetric(horizontal: 19.0),
                   child: SingleChildScrollView(
                     child: Column(
                         mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             '''hello world''',
                             style: TextStyle(fontSize: 20),
                           ),

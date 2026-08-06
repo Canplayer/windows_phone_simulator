@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:metro_ui/widgets/button.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
