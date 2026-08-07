@@ -83,7 +83,7 @@ And hey — if you’d like to show your support, I wouldn’t say no to a cup o
                           SvgPicture.asset(
                             height: 50,
                             width: 50,
-                            'images/canplayer_logo.svg',
+                            'images/icons/canplayer_logo.svg',
                             colorFilter: const ColorFilter.mode(
                               Colors.white,
                               BlendMode.srcIn,

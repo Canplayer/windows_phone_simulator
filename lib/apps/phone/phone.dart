@@ -216,15 +216,13 @@ class _PhoneAppState extends State<PhoneApp> {
       body: Builder(
         // 使用 Builder 来获取正确的 context
         builder: (scaffoldContext) {
-          return Padding(
-              padding: EdgeInsetsGeometry.symmetric(horizontal: 18),
-              child: SwipePages(
+          return const SwipePages(
                 items: [
                   SwipePageItem(title: Text('system'), page: Text("data")),
                   SwipePageItem(
                       title: Text('applications'), page: Text("data")),
                 ],
-              ));
+              );
         },
       ),
     );
