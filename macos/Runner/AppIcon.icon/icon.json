@@ -1,0 +1,84 @@
+{
+  "features" : [
+    "refractivity"
+  ],
+  "fill" : "automatic",
+  "groups" : [
+    {
+      "blend-mode" : "lighten",
+      "blur-material" : 0.36,
+      "layers" : [
+        {
+          "fill" : "none",
+          "glass" : true,
+          "image-name" : "flutter 2.svg",
+          "name" : "flutter 2",
+          "position" : {
+            "scale" : 0.32,
+            "translation-in-points" : [
+              211.984375,
+              130.703125
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "refractivity" : {
+        "depth" : 0.76,
+        "enabled" : true,
+        "strength" : 0.1485546875
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 1.96
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "1.svg",
+          "name" : "1",
+          "position" : {
+            "scale" : 0.2,
+            "translation-in-points" : [
+              77.640625,
+              151.5
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "opacity" : 1,
+      "refractivity" : {
+        "depth" : 0.4601953125,
+        "enabled" : false,
+        "strength" : -0.209140625
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.88
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.54
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
