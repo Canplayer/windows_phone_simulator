@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
+import 'package:metro_ui/metro_page_push.dart';
+import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:metro_ui/widgets/metro_circle_button.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
+import 'keypad_page.dart';
 
 /// 自驱动的 Phone 磁贴：不关心外界的创建/销毁，
 /// 挂载到屏幕上即开始播放角标时序：等 2s → 1 → 2 → 3 → 4 → 5，卸载时自动停止。
@@ -135,6 +138,12 @@ class PhoneApp extends StatefulWidget {
 }
 
 class _PhoneAppState extends State<PhoneApp> {
+  /// 页面 Scaffold 的 key：跳转到下一页时传给 metroPagePush，
+  /// 以便找到当前页面的 MetroPageScaffoldState 播放推场动画
+  /// （不传的话，跳转 context 在 Scaffold 之上，maybeOf 找不到 → 无动画直接切页）。
+  final GlobalKey<MetroPageScaffoldState> _scaffoldKey =
+      GlobalKey<MetroPageScaffoldState>();
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +152,7 @@ class _PhoneAppState extends State<PhoneApp> {
   @override
   Widget build(BuildContext context) {
     return MetroPageScaffold(
+      key: _scaffoldKey,
       stackPanel: const StackPanel(
         top: Text('CHINA UNICOM'),
         bottom: Text('history'),
@@ -171,7 +181,15 @@ class _PhoneAppState extends State<PhoneApp> {
             ),
           ),
           label: 'keypad',
-          onPressed: () {},
+          onPressed: () {
+            metroPagePush(
+              context,
+              MetroPageRoute(builder: (context) => const KeypadPage()),
+              // 传入当前页面 Scaffold 的 key，触发默认推场动画
+              // （当前页 Y 轴旋转 40.5°，动画完成后才真正 push 新页面）
+              scaffoldKey: _scaffoldKey,
+            );
+          },
         ),
         MetroAppBarButton(
           icon: SvgPicture.asset(
@@ -213,32 +231,18 @@ class _PhoneAppState extends State<PhoneApp> {
       ]),
       body: Stack(
         children: [
-          // 背景参考图：对照还原界面布局用，调整完可删
-          // Positioned.fill(
-          //   child: Opacity(
-          //     opacity: 1,
-          //     child: Image.asset(
-          //       'images/reference/phone_history_ref.png',
-          //       fit: BoxFit.fitWidth,
-          //       alignment: AlignmentGeometry.topStart,
-          //     ),
-          //   ),
-          // ),
-
           // 通话记录列表
           SingleChildScrollView(
-            child: 
-          Padding(
-            padding: const EdgeInsetsGeometry.symmetric(horizontal: 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final record in _sampleCallRecords)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: CallHistoryTile(
+            child: Padding(
+              padding: const EdgeInsetsGeometry.symmetric(horizontal: 18),
+              //padding: const EdgeInsetsGeometry.symmetric(horizontal: 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final record in _sampleCallRecords)
+                    CallHistoryTile(
                       icon: SvgPicture.asset(
-                        height: 20,
+                        height: 18,
                         'images/icons/phone_icon.svg',
                         fit: BoxFit.contain, // 保持宽高比，等价于“以高度缩放”
                         colorFilter: const ColorFilter.mode(
@@ -248,13 +252,13 @@ class _PhoneAppState extends State<PhoneApp> {
                       ),
                       record: record,
                       menu: const MetroContextMenuItem(
-                        child: Text('pin to start'),
+                        child: Text('delete item'),
                       ),
                     ),
-                  ),
-              ],
+                    const SizedBox(height: 60,),
+                ],
+              ),
             ),
-          ),
           ),
         ],
       ),
@@ -266,17 +270,17 @@ class _PhoneAppState extends State<PhoneApp> {
 const List<CallRecord> _sampleCallRecords = [
   CallRecord(
     kind: CallKind.outgoing,
-    number: '1713704502848',
-    timeLabel: '1/17/2015',
+    number: 'Emergency call',
+    timeLabel: '1/16/2015',
   ),
   CallRecord(
-    kind: CallKind.incoming,
+    kind: CallKind.missed,
     number: '13901234567',
     timeLabel: '1/16/2015',
   ),
   CallRecord(
     kind: CallKind.outgoing,
-    number: 'Emergency call',
+    number: '9981123456',
     timeLabel: '1/16/2015',
   ),
   CallRecord(
@@ -383,11 +387,11 @@ class CallHistoryTile extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         const SizedBox(
-          height: 50,
+          height: 82 * 0.8,
           width: double.infinity,
         ),
         Positioned(
-          top: 0,
+          top: 5 * 0.8,
           left: 2 * 0.8,
           child: MetroCircleButton(
             size: iconSize,
@@ -395,28 +399,44 @@ class CallHistoryTile extends StatelessWidget {
             onPressed: () {},
           ),
         ),
-        Positioned(
-          left: 60 * 0.8,
-          top: -10.5*0.8,
-          child: Text(
-            record.number,
-            style: numberStyle ??
-                const TextStyle(
-                  fontSize: 36.5 * 0.8,
-                  fontFamily: "Segoe UI Light",
-                  letterSpacing: 0.68,
+        // 号码 + 方向/时间：嵌套一个 Stack 组合成整体，方便对整个组合做动画
+        Positioned.fill(
+          // 按压缩放反馈：参考 metro_ui Tile 的按压逻辑（即时反馈、松手回弹），
+          // 去掉 3D 旋转，仅保留缩放
+          child: _PressScale(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: 60.5 * 0.8,
+                  top: -3.5 * 0.8,
+                  child: Text(
+                    record.number,
+                    style: numberStyle ??
+                        const TextStyle(
+                          fontSize: 37 * 0.8,
+                          fontWeight: FontWeight(300),
+                          letterSpacing: 0.5,
+                        ),
+                  ),
                 ),
-          ),
-        ),
-        Positioned(
-          top: 36 * 0.8,
-          left: 50,
-          child: Text(
-            '${record.directionLabel},${record.timeLabel}',
-            style: TextStyle(
-              fontFamily: "Segoe UI Light",
-              fontSize: 19 * 0.8,
-              letterSpacing: 0.8,
+                Positioned(
+                  top: 42 * 0.8,
+                  left: 63 * 0.8,
+                  child: Text(
+                    '${record.directionLabel}, ${record.timeLabel}',
+                    style: detailStyle ??
+                        TextStyle(
+                          fontWeight: FontWeight(300),
+                          fontSize: 19 * 0.8,
+                          letterSpacing: 0.8,
+                          color: record.kind == CallKind.missed
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -430,5 +450,126 @@ class CallHistoryTile extends StatelessWidget {
       row = MetroContextMenu(menu: menu!, child: row);
     }
     return row;
+  }
+}
+
+/// 按压缩放反馈组件。
+///
+/// 参考 metro_ui 的 Tile 按压逻辑：按下立即反馈（PanDown 比 TapDown 更即时），
+/// 松手弹性回弹。去掉了 Tile 的 3D 旋转部分，仅保留按压缩放。
+///
+/// ⚠️ 为什么用 GestureDetector 而不是 Listener：
+/// 长按弹出上下文菜单时，外层 MetroContextMenu 的 LongPress 会在手势竞技场中
+/// 获胜，本组件的 Pan/Tap 手势随之失败 → 触发 onPanCancel / onTapCancel →
+/// 立即归位。而 Listener 不参与手势竞技场：菜单弹出后手指未抬起，
+/// onPointerUp 不会触发、事件流也没被取消（onPointerCancel 不触发），
+/// 组件会一直停在按下状态。
+class _PressScale extends StatefulWidget {
+  final Widget child;
+
+  const _PressScale({required this.child});
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _isTouch = false;
+
+  /// 按下缩小的目标比例
+  static const double _pressedScale = 0.95;
+
+  /// 按下时的目标不透明度（1.0 → 0.5，配合缩放做按压反馈）
+  static const double _pressedOpacity = 0.5;
+
+  /// 按下缩小的时长（快速反馈）
+  static const Duration _pressDuration = Duration(milliseconds: 100);
+
+  /// 松手回弹的时长
+  static const Duration _releaseDuration = Duration(milliseconds: 400);
+
+  /// 按下缩小的曲线
+  static const Curve _pressCurve = Curves.easeOutCubic;
+
+  /// 松手回弹的曲线（弹性）
+  static const Curve _releaseCurve = Curves.elasticOut;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  /// 按下即缩小（即时反馈，同 Tile 的 PanDown 立即触发）
+  void _handlePanDown(DragDownDetails details) {
+    _isTouch = true;
+    _controller.animateTo(1.0, duration: _pressDuration, curve: _pressCurve);
+  }
+
+  /// 手指滑出组件区域：立即回弹（同 Tile 的 PanUpdate 越界逻辑）
+  void _handlePanUpdate(DragUpdateDetails details) {
+    if (!_isTouch) return;
+    final RenderBox box = context.findRenderObject()! as RenderBox;
+    if (!box.attached || box.size.isEmpty) return;
+    final Offset local = box.globalToLocal(details.globalPosition);
+    final bool inside = local.dx >= 0 &&
+        local.dx <= box.size.width &&
+        local.dy >= 0 &&
+        local.dy <= box.size.height;
+    if (!inside) _handleRelease();
+  }
+
+  /// 归位：松手 / 手势被抢占（长按菜单、滑动列表）/ 快速点击都走这里
+  void _handleRelease() {
+    _isTouch = false;
+    _controller.animateTo(
+      0.0,
+      duration: _releaseDuration,
+      curve: _releaseCurve,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      // 只响应文字区域本身，避免挡住下方圆形按钮的点击
+      behavior: HitTestBehavior.deferToChild,
+      // Pan 手势：按下立即反馈；长按时被外层 LongPress 抢占 → onPanCancel 归位
+      onPanDown: _handlePanDown,
+      onPanUpdate: _handlePanUpdate,
+      onPanEnd: (_) => _handleRelease(),
+      onPanCancel: _handleRelease,
+      // Tap 手势：保证快速点击（无移动、Pan 未获胜）也能归位
+      onTap: _handleRelease,
+      onTapCancel: _handleRelease,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final double t = _controller.value;
+          // 1. Z 轴缩放：1.0 → 0.95
+          final double scale = 1.0 - ((1.0 - _pressedScale) * t);
+          // 2. 透明度：1.0 → 0.5
+          final double opacity =
+              1.0 - ((1.0 - _pressedOpacity) * t);
+          return Opacity(
+            opacity: opacity,
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.center,
+              child: child,
+            ),
+          );
+        },
+        child: widget.child,
+      ),
+    );
   }
 }
