@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/page_scaffold.dart';
-import 'package:metro_ui/widgets/metro_circle_button.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/widgets/swipe_title_indicator.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
 /// 自驱动的 Phone 磁贴：不关心外界的创建/销毁，
 /// 挂载到屏幕上即开始播放角标时序：等 2s → 1 → 2 → 3 → 4 → 5，卸载时自动停止。
 /// 每个磁贴实例持有自己的角标与时序任务，互不干扰。
-class PhoneLiveTile extends StatefulWidget {
+class MessagingLiveTile extends StatefulWidget {
   final LiveTileSize size;
   final Widget? name;
   final Widget icon;
 
-  const PhoneLiveTile({
+  const MessagingLiveTile({
     super.key,
     required this.size,
     required this.icon,
@@ -23,10 +23,10 @@ class PhoneLiveTile extends StatefulWidget {
   });
 
   @override
-  State<PhoneLiveTile> createState() => _PhoneLiveTileState();
+  State<MessagingLiveTile> createState() => _MessagingLiveTileState();
 }
 
-class _PhoneLiveTileState extends State<PhoneLiveTile> {
+class _MessagingLiveTileState extends State<MessagingLiveTile> {
   /// 磁贴内容（可以是任意 Widget：文字、图片、动画、组合……）
   late final ValueNotifier<Widget> _content;
 
@@ -91,8 +91,8 @@ class _PhoneLiveTileState extends State<PhoneLiveTile> {
   }
 }
 
-class PhoneApp extends StatefulWidget {
-  const PhoneApp({super.key});
+class MessagingApp extends StatefulWidget {
+  const MessagingApp({super.key});
 
   // ─── 图标模板 ─────────────────────────────────
   // 以“高度”为基准等比缩放：传目标高度即可，宽度按 SVG 宽高比自动计算。
@@ -112,28 +112,28 @@ class PhoneApp extends StatefulWidget {
 
   static void register() {
     AppRegistry().register(App(
-      id: 'com.ms.phone',
-      name: 'Phone',
+      id: 'com.ms.messaging',
+      name: 'Messaging',
       //themeColor: Colors.purple,
       icon: appIcon(32), // 应用列表图标
-      page: const PhoneApp(),
-      smallTile: PhoneLiveTile(
+      page: const MessagingApp(),
+      smallTile: MessagingLiveTile(
         size: LiveTileSize.small,
         icon: appIcon(36), // 小磁贴：画布 79.5px，占比约 45%
       ),
-      mediumTile: PhoneLiveTile(
+      mediumTile: MessagingLiveTile(
         size: LiveTileSize.medium,
-        name: const Text('Phone'),
+        name: const Text('Messaging'),
         icon: appIcon(72), // 中磁贴：画布 168px，占比约 43%
       ),
     ));
   }
 
   @override
-  State<PhoneApp> createState() => _PhoneAppState();
+  State<MessagingApp> createState() => _MessagingAppState();
 }
 
-class _PhoneAppState extends State<PhoneApp> {
+class _MessagingAppState extends State<MessagingApp> {
   @override
   void initState() {
     super.initState();
@@ -145,7 +145,8 @@ class _PhoneAppState extends State<PhoneApp> {
       //backgroundColor: Colors.blueGrey,
       stackPanel: const StackPanel(
         top: Text('CHINA UNICOM'),
-        bottom: Text('history'),
+        //通话记录
+        //bottom: Text('history'),
       ),
       applicationBar:
           MetroApplicationBar(backgroundColor: Colors.grey[900], buttons: [
@@ -214,45 +215,13 @@ class _PhoneAppState extends State<PhoneApp> {
       body: Builder(
         // 使用 Builder 来获取正确的 context
         builder: (scaffoldContext) {
-          return Padding(
-            padding: const EdgeInsetsGeometry.symmetric(horizontal: 18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                MetroCircleButton(
-                  size: 43.125*0.8,
-                    icon: Center(
-                  child: SvgPicture.asset(
-                    height: 20,
-                    'images/icons/phone_icon.svg',
-                    fit: BoxFit.contain, // 保持宽高比，等价于“以高度缩放”
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                )),
-                SizedBox(
-                  width: 10,
-                ),
-                const Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Text(
-                      "1713704502848",
-                      style:
-                          TextStyle(fontSize: 36, fontWeight: FontWeight.w100),
-                    ),
-                    Positioned(
-                      top: 40,
-                      child: Text("Outgoing,1/17/2015"),
-                    )
-                  ],
-                ),
-              ],
-            ),
-          );
+          return const SwipePages(
+                items: [
+                  SwipePageItem(title: Text('system'), page: Text("data")),
+                  SwipePageItem(
+                      title: Text('applications'), page: Text("data")),
+                ],
+              );
         },
       ),
     );

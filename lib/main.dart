@@ -4,6 +4,7 @@ import 'package:metro_ui/metro_scroll_behavior.dart';
 import 'package:windows_phone_simulator/apps/about/about.dart';
 import 'package:windows_phone_simulator/apps/livebadgechanger/livebadgechanger.dart';
 import 'package:windows_phone_simulator/apps/customtiledemo/customtiledemo.dart';
+import 'package:windows_phone_simulator/apps/messaging/messaging.dart';
 import 'package:windows_phone_simulator/apps/swipepagedemo/swipepagedemo.dart';
 import 'package:windows_phone_simulator/apps/phone/phone.dart';
 import 'package:windows_phone_simulator/demo_page.dart';
@@ -19,6 +20,7 @@ void main() {
   CustomTileDemoApp.register();
   LiveBadgeChangerDemoApp.register();
   SwipePageDemoApp.register();
+  MessagingApp.register();
   runApp(const MyApp());
 }
 
