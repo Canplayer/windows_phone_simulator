@@ -34,8 +34,9 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       metroColor: Color.fromARGB(255, 229, 20, 0),
       useWVGAMode: true,
+      //themeMode: MetroThemeMode.light,
       //version: MetroDesignVersion.wp7,
-      scrollBehavior: MetroScrollBehavior(),
+      //scrollBehavior: MetroScrollBehavior(),
       home: Splashscreen(),
     );
   }

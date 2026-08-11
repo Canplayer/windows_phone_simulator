@@ -153,12 +153,27 @@ class _PhoneAppState extends State<PhoneApp> {
   Widget build(BuildContext context) {
     return MetroPageScaffold(
       key: _scaffoldKey,
+      extendBodyToApplicationBar: false,
+      
       stackPanel: const StackPanel(
         top: Text('CHINA UNICOM'),
         bottom: Text('history'),
       ),
-      applicationBar:
-          MetroApplicationBar(backgroundColor: Colors.grey[900], buttons: [
+      // onDidPushNext: <T>(T data) async {
+      //   debugPrint('PhoneApp: onDidPushNext');
+      //   // 推入下一页前调用：metroPagePush 会 await 此回调完成后再 push，
+      //   // 在这里放自定义推场动画即可替代默认动画（playDefaultPushNextAnimation）
+      // },
+      // onDidPopNext: () {
+      //   debugPrint('PhoneApp: onDidPopNext');
+      // },
+      // onDidPop: () async{
+      //   debugPrint('PhoneApp: onDidPop');
+      // },
+      // onDidPush: () async {
+      //   debugPrint('PhoneApp: onDidPush');
+      // },
+      applicationBar: MetroApplicationBar(buttons: [
         MetroAppBarButton(
           icon: SvgPicture.asset(
             'images/icons/phone_1.svg',
@@ -255,7 +270,6 @@ class _PhoneAppState extends State<PhoneApp> {
                         child: Text('delete item'),
                       ),
                     ),
-                    const SizedBox(height: 60,),
                 ],
               ),
             ),
@@ -557,8 +571,7 @@ class _PressScaleState extends State<_PressScale>
           // 1. Z 轴缩放：1.0 → 0.95
           final double scale = 1.0 - ((1.0 - _pressedScale) * t);
           // 2. 透明度：1.0 → 0.5
-          final double opacity =
-              1.0 - ((1.0 - _pressedOpacity) * t);
+          final double opacity = 1.0 - ((1.0 - _pressedOpacity) * t);
           return Opacity(
             opacity: opacity,
             child: Transform.scale(

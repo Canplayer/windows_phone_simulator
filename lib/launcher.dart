@@ -102,6 +102,7 @@ class _LauncherPageState extends State<LauncherPage>
   Widget build(BuildContext context) {
     return MetroPageScaffold(
       key: _scaffoldKey,
+      enableZAxisEffect: true,
       onDidPushNext: <T>(T data) async {
         if (data is String) {
           await _startMenuKey.currentState?.startPushNextAnimations(data);
