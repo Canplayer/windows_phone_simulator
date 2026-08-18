@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/button.dart';
+import 'package:metro_ui/widgets/metro_circle_button.dart';
 import 'package:metro_ui/widgets/tile.dart';
 
 /// 拨号键盘页面。
@@ -24,12 +25,19 @@ class _KeypadPageState extends State<KeypadPage>
   /// 页面整体的竖直位移（px）。
   late final Animation<double> _riseOffset;
 
+  /// 已输入的号码（由键盘输入，显示在顶部号码框）。
+  String _number = '';
+
+  /// 是否处于“正在呼叫”状态：点 call 后置 true，号码框显示 calling 提示；
+  /// 再次输入/删除时自动恢复为编辑态。
+  bool _isCalling = false;
+
   @override
   void initState() {
     super.initState();
     _riseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 300),
     );
     // 减速动画曲线（easeOutCubic）应用在位移插值上
     _riseOffset = Tween<double>(begin: 400, end: 0)
@@ -72,6 +80,76 @@ class _KeypadPageState extends State<KeypadPage>
     }
   }
 
+  /// 拨号键输入：把按键主字符追加到号码末尾，并退出 calling 态。
+  void _onKeyInput(String ch) {
+    setState(() {
+      _isCalling = false;
+      _number += ch;
+    });
+  }
+
+  /// 删除最后一个字符；号码为空时不操作，并退出 calling 态。
+  void _onDelete() {
+    if (_number.isEmpty) return;
+    setState(() {
+      _isCalling = false;
+      _number = _number.substring(0, _number.length - 1);
+    });
+  }
+
+  /// 点击 call：先播上浮动画，号码非空时进入“正在呼叫”状态。
+  Future<void> _onCallPressed() async {
+    await _playRiseAnimation();
+    if (!mounted) return;
+    if (_number.isEmpty) return;
+    setState(() {
+      _isCalling = true;
+    });
+  }
+
+  /// 美式号码智能格式化：边输入边把纯数字拼成用户习惯的
+  /// (XXX) XXX-XXXX 形式（括号区号 + 空格 + 连字符）。
+  ///
+  /// 规则：
+  /// - 1-3 位：原样显示；
+  /// - 4-6 位：(XXX) XXX（开始补区号括号）；
+  /// - 7-10 位：(XXX) XXX-XXXX（第 7 位起补连字符）；
+  /// - 11 位且首位为 1：1 (XXX) XXX-XXXX（北美长途前缀）；
+  /// - 以 + 开头：格式前加 + 前缀（国际格式）；
+  /// - 含 * 或 #（如 USSD 码 *100#）或无法识别时原样返回。
+  String _formatNumber(String raw) {
+    if (raw.isEmpty) return raw;
+    // * 与 # 是电话功能码，不做格式化
+    if (raw.contains('*') || raw.contains('#')) return raw;
+
+    final bool plus = raw.startsWith('+');
+    final String digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return raw;
+
+    final int n = digits.length;
+    final String body;
+    if (n <= 3) {
+      body = digits;
+    } else if (n <= 6) {
+      body = '(${digits.substring(0, 3)}) ${digits.substring(3)}';
+    } else if (n <= 10) {
+      body =
+          '(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}';
+    } else if (n == 11 && digits.startsWith('1')) {
+      body =
+          '1 (${digits.substring(1, 4)}) ${digits.substring(4, 7)}-${digits.substring(7)}';
+    } else if (n == 11) {
+      body =
+          '(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6, 10)} ${digits.substring(10)}';
+    } else {
+      // 超过 11 位：前 10 位按标准格式，剩余数字追加在后
+      final rest = digits.substring(10);
+      body =
+          '(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6, 10)} $rest';
+    }
+    return plus ? '+$body' : body;
+  }
+
   @override
   Widget build(BuildContext context) {
     // 动画作用在 MetroPageScaffold 外层，整个页面（含 Application Bar）一起上浮
@@ -101,17 +179,18 @@ class _KeypadPageState extends State<KeypadPage>
                   Expanded(
                     child: MetroButton(
                       margin: EdgeInsets.zero,
-                      onTap: _playRiseAnimation,
+                      onTap: (){},
                       child: const Text("call", textAlign: TextAlign.center),
                     ),
                   ),
                   const SizedBox(
                     width: 19,
                   ),
-                  const Expanded(
+                  Expanded(
                     child: MetroButton(
                       margin: EdgeInsets.zero,
-                      child: Text("save", textAlign: TextAlign.center),
+                      onTap: (){},
+                      child: const Text("save", textAlign: TextAlign.center),
                     ),
                   ),
                 ],
@@ -132,6 +211,63 @@ class _KeypadPageState extends State<KeypadPage>
             //     ),
             //   ),
             // ),
+            // 顶部号码显示区：大号白色号码右对齐 + 右侧删除键
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 6, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // calling 状态提示：点 call 后显示在号码上方
+                          if (_isCalling)
+                            Text(
+                              'calling…',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          // 智能格式化后的号码：自动补括号/空格/连字符，
+                          // 过长时 FittedBox 自动缩小适配，不截断
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _formatNumber(_number),
+                              maxLines: 1,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.white,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 删除键：号码为空时禁用（半透明）
+                    MetroCircleButton(
+                      size: 44,
+                      iconSize: 24,
+                      icon: const Icon(
+                        Icons.backspace_outlined,
+                        color: Colors.white,
+                      ),
+                      onPressed: _number.isEmpty ? null : _onDelete,
+                    ),
+                  ],
+                ),
+              ),
+            ),
             // 拨号键盘：固定高度、灰色背景、固定在屏幕底部安全区之上，
             // 数字偏左、T9 字母偏右，* 和 # 居中
             Positioned(
@@ -156,6 +292,7 @@ class _KeypadPageState extends State<KeypadPage>
                                   sub: key.sub,
                                   centered: key.centered,
                                   pressedColor: widget.dialPressedColor,
+                                  onPressed: () => _onKeyInput(key.main),
                                 ),
                               ),
                             ],
@@ -211,6 +348,7 @@ class _DialKey extends StatelessWidget {
     this.sub,
     this.centered = false,
     this.pressedColor,
+    this.onPressed,
   });
 
   final String main;
@@ -219,6 +357,9 @@ class _DialKey extends StatelessWidget {
 
   /// 按下时的背景色；为 null 时使用主题色（ColorScheme.primary）。
   final Color? pressedColor;
+
+  /// 亮起状态下抬起手指时触发，用于把按键字符输入号码。
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +402,7 @@ class _DialKey extends StatelessWidget {
 
     return Tile(
       child: MetroPressDetector(
+        onPressed: onPressed,
         child: Builder(
           builder: (context) {
             // 按下时（手指停留）背景变为主题色，抬起后恢复灰色

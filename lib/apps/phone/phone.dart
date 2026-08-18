@@ -159,14 +159,14 @@ class _PhoneAppState extends State<PhoneApp> {
         top: Text('CHINA UNICOM'),
         bottom: Text('history'),
       ),
-      // onDidPushNext: <T>(T data) async {
-      //   debugPrint('PhoneApp: onDidPushNext');
-      //   // 推入下一页前调用：metroPagePush 会 await 此回调完成后再 push，
-      //   // 在这里放自定义推场动画即可替代默认动画（playDefaultPushNextAnimation）
-      // },
-      // onDidPopNext: () {
-      //   debugPrint('PhoneApp: onDidPopNext');
-      // },
+      onDidPushNext: <T>(T data) async {
+        debugPrint('PhoneApp: onDidPushNext');
+        // 推入下一页前调用：metroPagePush 会 await 此回调完成后再 push，
+        // 在这里放自定义推场动画即可替代默认动画（playDefaultPushNextAnimation）
+      },
+      onDidPopNext: () {
+        debugPrint('PhoneApp: onDidPopNext');
+      },
       // onDidPop: () async{
       //   debugPrint('PhoneApp: onDidPop');
       // },
