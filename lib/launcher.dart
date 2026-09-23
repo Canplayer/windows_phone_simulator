@@ -103,18 +103,18 @@ class _LauncherPageState extends State<LauncherPage>
     // 注册内置应用
     _registerBuiltinApps();
 
-    final allApps = AppRegistry().apps;
-    _pinnedTiles = allApps.isNotEmpty
-        ? [
-            TileModel(
-              instanceId: '${allApps[0].id}_1',
-              app: allApps[0],
-              currentSize: TileSize.medium,
-              gridX: 0,
-              gridY: 0,
-            ),
-          ]
-        : [];
+    // Phone 已在 main.dart 中注册，这里直接按 id 取（铁定存在，不做判空）
+    final App phoneApp =
+        AppRegistry().apps.firstWhere((app) => app.id == 'com.ms.phone');
+    _pinnedTiles = [
+      TileModel(
+        instanceId: '${phoneApp.id}_1',
+        app: phoneApp,
+        currentSize: TileSize.medium,
+        gridX: 0,
+        gridY: 0,
+      ),
+    ];
   }
 
   /// 判断组件是否在屏幕可见范围内
@@ -192,6 +192,10 @@ class _LauncherPageState extends State<LauncherPage>
       onDidPop: () async {
         // await _startMenuKey.currentState?.startPushAnimations();
       },
+      disableDefaultPushAnimation: true,
+      disableDefaultPopAnimation: true,
+      disableDefaultPopNextAnimation: true,
+      disableDefaultPushNextAnimation: true,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
@@ -209,170 +213,167 @@ class _LauncherPageState extends State<LauncherPage>
                   controller: _pageController,
                   clipBehavior: Clip.none,
                   scrollDirection: Axis.horizontal,
-                physics: _isEditMode
-                    ? const NeverScrollableScrollPhysics()
-                    : LauncherSnapPhysics(
-                        snapOffsets: [0, screenWidth - 60],
-                        //snapOffsets: [0, screenWidth],
-                        parent: const ClampingScrollPhysics(), // 禁用边界回弹
-                        // 松手瞬间感知即将换页：目标落在第二页范围 → 箭头逆时针转 180°，
-                        // 回到第一页 → 顺时针转回（参考 MetroPanorama.onTargetCalculated）
-                        onTargetCalculated: (target) {
-                          _syncArrowWithPage(
-                            target < (screenWidth - 60) / 2,
-                          );
-                        },
+                  physics: _isEditMode
+                      ? const NeverScrollableScrollPhysics()
+                      : LauncherSnapPhysics(
+                          snapOffsets: [0, screenWidth - 60],
+                          //snapOffsets: [0, screenWidth],
+                          parent: const ClampingScrollPhysics(), // 禁用边界回弹
+                          // 松手瞬间感知即将换页：目标落在第二页范围 → 箭头逆时针转 180°，
+                          // 回到第一页 → 顺时针转回（参考 MetroPanorama.onTargetCalculated）
+                          onTargetCalculated: (target) {
+                            _syncArrowWithPage(
+                              target < (screenWidth - 60) / 2,
+                            );
+                          },
+                        ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: screenWidth - 60,
+                        //width: screenWidth,
+                        child: StartMenu(
+                          key: _startMenuKey,
+                          crossAxisCount: 4,
+                          initialTiles: _pinnedTiles,
+                          onEditModeChanged: (isEdit) {
+                            setState(() {
+                              _isEditMode = isEdit;
+                            });
+                          },
+                        ),
                       ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: screenWidth - 60,
-                      //width: screenWidth,
-                      child: StartMenu(
-                        key: _startMenuKey,
-                        crossAxisCount: 4,
-                        initialTiles: _pinnedTiles,
-                        onEditModeChanged: (isEdit) {
-                          setState(() {
-                            _isEditMode = isEdit;
-                          });
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: screenWidth,
-                      child: GestureDetector(
-                        onTap: _isEditMode
-                            ? () => _startMenuKey.currentState?.exitEditMode()
-                            : null,
-                        behavior: HitTestBehavior.opaque,
-                        child: AbsorbPointer(
-                            absorbing: _isEditMode,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Container(
-                                    width: 60,
-                                    child: Column(
-                                      children: [
-                                        const SizedBox(height: 80),
-                                        MetroCircleButton(
-                                          icon: RotationTransition(
-                                            turns: _arrowTurns,
-                                            child: Icon(
-                                              Icons.arrow_forward,
-                                              color: Colors.white,
+                      SizedBox(
+                        width: screenWidth,
+                        child: GestureDetector(
+                          onTap: _isEditMode
+                              ? () => _startMenuKey.currentState?.exitEditMode()
+                              : null,
+                          behavior: HitTestBehavior.opaque,
+                          child: AbsorbPointer(
+                              absorbing: _isEditMode,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Container(
+                                      width: 60,
+                                      child: Column(
+                                        children: [
+                                          const SizedBox(height: 80),
+                                          MetroCircleButton(
+                                            icon: RotationTransition(
+                                              turns: _arrowTurns,
+                                              child: Icon(
+                                                Icons.arrow_forward,
+                                                color: Colors.white,
+                                              ),
                                             ),
+                                            onPressed: () {
+                                              // 在左右两个页面（开始屏幕 ↔ 应用列表）之间切换
+                                              _togglePages(screenWidth);
+                                            },
                                           ),
-                                          onPressed: () {
-                                            // 在左右两个页面（开始屏幕 ↔ 应用列表）之间切换
-                                            _togglePages(screenWidth);
-                                          },
-                                        ),
-                                        const SizedBox(height: 15),
-                                        MetroCircleButton(
-                                          icon: Icon(
+                                          const SizedBox(height: 15),
+                                          MetroCircleButton(
+                                            icon: Icon(
                                               Icons.search_rounded,
                                               color: Colors.white,
                                             ),
-                                          onPressed: () {
-                                            // 在左右两个页面（开始屏幕 ↔ 应用列表）之间切换
-                                            _togglePages(screenWidth);
-                                          },
-                                        ),
-                                      ],
-                                    )),
-                                Expanded(
-                                  child: Container(
-                                    //color: Colors.transparent,
-                                    padding: const EdgeInsets.only(
-                                        top: 40, left: 20),
-                                    child: ListView.builder(
-                                      itemCount: apps.length,
-                                      itemBuilder: (context, index) {
-                                        final app = apps[index];
-                                        final GlobalKey<MetroContextMenuState>
-                                            menuKey =
-                                            GlobalKey<MetroContextMenuState>();
-                                        return MetroContextMenu(
-                                          key: menuKey,
-                                          menu: MetroContextMenuItem(
-                                            child: const Text('pin to start'),
-                                            onTap: () {
-                                              // 关闭上下文菜单
-                                              menuKey.currentState
-                                                  ?.dismissMenu();
-
-                                              // 外层不参与磁贴排版，直接把 App 丢给 StartMenu 内部处理！
-                                              _startMenuKey.currentState
-                                                  ?.pinApp(app);
-                                            },
+                                            onPressed: () {},
                                           ),
-                                          child: Tile(
-                                            onTap: () {
-                                              metroPagePush(context,
-                                                  MetroPageRoute(
-                                                builder: (context) {
-                                                  return app.page;
-                                                },
-                                              ), scaffoldKey: _scaffoldKey
-                                                  //提供一种便利的方法，可以将范型参数传递给onDidPushNext，主要设计目的是为了方便动画传参
-                                                  //例如：Windows Phone中，被点击的Tile往往是最后一个飞出的，可能需要把Tile的index传递过去，然后在onDidPushNext中处理动画
-                                                  //dataToPass: index,
-                                                  );
-                                            },
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4),
-                                              child: Row(
-                                                children: [
-                                                  // 应用图标块
-                                                  // 注意：Container 的 48×48 是紧约束，会强制拉伸
-                                                  // child 填满（SvgPicture 的 height 会被覆盖）。
-                                                  // 用 Align 提供宽松约束，让图标保持自身尺寸居中。
-                                                  Container(
-                                                    width: 48,
-                                                    height: 48,
-                                                    color: app.themeColor ??
-                                                        Theme.of(context)
-                                                            .primaryColor,
-                                                    child: Align(
-                                                      alignment:
-                                                          Alignment.center,
-                                                      child: app.icon,
+                                        ],
+                                      )),
+                                  Expanded(
+                                    child: Container(
+                                      //color: Colors.transparent,
+                                      padding: const EdgeInsets.only(
+                                          top: 40, left: 20),
+                                      child: ListView.builder(
+                                        itemCount: apps.length,
+                                        itemBuilder: (context, index) {
+                                          final app = apps[index];
+                                          final GlobalKey<MetroContextMenuState>
+                                              menuKey = GlobalKey<
+                                                  MetroContextMenuState>();
+                                          return MetroContextMenu(
+                                            key: menuKey,
+                                            menu: MetroContextMenuItem(
+                                              child: const Text('pin to start'),
+                                              onTap: () {
+                                                // 关闭上下文菜单
+                                                menuKey.currentState
+                                                    ?.dismissMenu();
+
+                                                // 外层不参与磁贴排版，直接把 App 丢给 StartMenu 内部处理！
+                                                _startMenuKey.currentState
+                                                    ?.pinApp(app);
+                                              },
+                                            ),
+                                            child: Tile(
+                                              onTap: () {
+                                                metroPagePush(context,
+                                                    MetroPageRoute(
+                                                  builder: (context) {
+                                                    return app.page;
+                                                  },
+                                                ), scaffoldKey: _scaffoldKey
+                                                    //提供一种便利的方法，可以将范型参数传递给onDidPushNext，主要设计目的是为了方便动画传参
+                                                    //例如：Windows Phone中，被点击的Tile往往是最后一个飞出的，可能需要把Tile的index传递过去，然后在onDidPushNext中处理动画
+                                                    //dataToPass: index,
+                                                    );
+                                              },
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
+                                                child: Row(
+                                                  children: [
+                                                    // 应用图标块
+                                                    // 注意：Container 的 48×48 是紧约束，会强制拉伸
+                                                    // child 填满（SvgPicture 的 height 会被覆盖）。
+                                                    // 用 Align 提供宽松约束，让图标保持自身尺寸居中。
+                                                    Container(
+                                                      width: 48,
+                                                      height: 48,
+                                                      color: app.themeColor ??
+                                                          Theme.of(context)
+                                                              .primaryColor,
+                                                      child: Align(
+                                                        alignment:
+                                                            Alignment.center,
+                                                        child: app.icon,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  // 应用名称
-                                                  Expanded(
-                                                    child: Text(
-                                                      app.name,
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 24),
+                                                    const SizedBox(width: 16),
+                                                    // 应用名称
+                                                    Expanded(
+                                                      child: Text(
+                                                        app.name,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 24),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        );
-                                      },
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            )),
+                                ],
+                              )),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 ),
               ));
         },
