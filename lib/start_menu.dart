@@ -217,7 +217,7 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
               Tween<double>(begin: 0.0, end: math.pi / 2)
                   .animate(CurvedAnimation(
             parent: _flipControllers[tile.instanceId]!,
-            curve: MetroCurves.normalPageRotateOut,
+            curve: MetroCurves.forwardOut,
           ));
           _flipControllers[tile.instanceId]?.forward(from: 0.0);
         }
@@ -235,7 +235,7 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
         _flipAnimations[tapInstanceId] =
             Tween<double>(begin: 0.0, end: math.pi / 2).animate(CurvedAnimation(
           parent: _flipControllers[tapInstanceId]!,
-          curve: MetroCurves.normalPageRotateOut,
+          curve: MetroCurves.forwardOut,
         ));
         _flipControllers[tapInstanceId]?.forward(from: 0.0);
       }
@@ -302,7 +302,7 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
               Tween<double>(begin: 50 * math.pi / 180, end: 0.0)
                   .animate(CurvedAnimation(
             parent: _flipControllers[tile.instanceId]!,
-            curve: MetroCurves.normalPageRotateIn,
+            curve: MetroCurves.forwardIn,
           ));
           _flipControllers[tile.instanceId]?.forward(from: 0.0);
         }
@@ -370,7 +370,7 @@ class StartMenuState extends State<StartMenu> with TickerProviderStateMixin {
               Tween<double>(begin: -65 * math.pi / 180, end: 0.0)
                   .animate(CurvedAnimation(
             parent: _flipControllers[tile.instanceId]!,
-            curve: MetroCurves.normalPageRotateIn,
+            curve: MetroCurves.forwardIn,
           ));
           _flipControllers[tile.instanceId]?.forward(from: 0.0);
         }

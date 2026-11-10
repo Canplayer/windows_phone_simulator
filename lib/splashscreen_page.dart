@@ -44,7 +44,7 @@ class _SplashscreenState extends State<Splashscreen>
     _logoAnimation = Tween<double>(begin: 1, end: 0.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: MetroCurves.normalPageRotateIn,
+        curve: MetroCurves.forwardIn,
       ),
     );
 
@@ -55,7 +55,7 @@ class _SplashscreenState extends State<Splashscreen>
     _text1Animation = Tween<double>(begin: 1, end: 0.0).animate(
       CurvedAnimation(
         parent: _text1Controller,
-        curve: MetroCurves.normalPageRotateIn,
+        curve: MetroCurves.forwardIn,
       ),
     );
 
@@ -66,7 +66,7 @@ class _SplashscreenState extends State<Splashscreen>
     _text2Animation = Tween<double>(begin: 1, end: 0.0).animate(
       CurvedAnimation(
         parent: _text2Controller,
-        curve: MetroCurves.normalPageRotateIn,
+        curve: MetroCurves.forwardIn,
       ),
     );
 

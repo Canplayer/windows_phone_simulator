@@ -5,6 +5,7 @@ import 'package:windows_phone_simulator/apps/about/about.dart';
 import 'package:windows_phone_simulator/apps/livebadgechanger/livebadgechanger.dart';
 import 'package:windows_phone_simulator/apps/customtiledemo/customtiledemo.dart';
 import 'package:windows_phone_simulator/apps/messaging/messaging.dart';
+import 'package:windows_phone_simulator/apps/panorama_page.dart';
 import 'package:windows_phone_simulator/apps/swipepagedemo/swipepagedemo.dart';
 import 'package:windows_phone_simulator/apps/phone/phone.dart';
 import 'package:windows_phone_simulator/demo_page.dart';
@@ -21,10 +22,12 @@ void main() {
   LiveBadgeChangerDemoApp.register();
   SwipePageDemoApp.register();
   MessagingApp.register();
+  PanoramaPage.register();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  
   const MyApp({super.key});
 
   // This widget is the root of your application.
