@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/metro_page_push.dart';
 import 'package:metro_ui/page.dart';
-import 'package:metro_ui/widgets/metro_spinner.dart';
+import 'package:metro_ui/widgets/progress_bar.dart';
 import 'package:metro_ui/animated_widgets.dart';
 import 'package:metro_ui/animations.dart';
 import 'package:metro_ui/page_scaffold.dart';
@@ -42,10 +42,7 @@ class _SplashscreenState extends State<Splashscreen>
       duration: const Duration(milliseconds: 1200),
     );
     _logoAnimation = Tween<double>(begin: 1, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: MetroCurves.forwardIn,
-      ),
+      CurvedAnimation(parent: _logoController, curve: MetroCurves.forwardIn),
     );
 
     _text1Controller = AnimationController(
@@ -53,10 +50,7 @@ class _SplashscreenState extends State<Splashscreen>
       duration: const Duration(milliseconds: 1200),
     );
     _text1Animation = Tween<double>(begin: 1, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _text1Controller,
-        curve: MetroCurves.forwardIn,
-      ),
+      CurvedAnimation(parent: _text1Controller, curve: MetroCurves.forwardIn),
     );
 
     _text2Controller = AnimationController(
@@ -64,10 +58,7 @@ class _SplashscreenState extends State<Splashscreen>
       duration: const Duration(milliseconds: 1200),
     );
     _text2Animation = Tween<double>(begin: 1, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _text2Controller,
-        curve: MetroCurves.forwardIn,
-      ),
+      CurvedAnimation(parent: _text2Controller, curve: MetroCurves.forwardIn),
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -128,7 +119,10 @@ class _SplashscreenState extends State<Splashscreen>
                       rotation: 3.1416 / 180 * -65 * _text1Animation.value,
                       child: Transform(
                         transform: Matrix4.translationValues(
-                            100 * _text1Animation.value, 0, 0),
+                          100 * _text1Animation.value,
+                          0,
+                          0,
+                        ),
                         child: const Text(
                           'Flumetro',
                           style: TextStyle(
@@ -152,7 +146,10 @@ class _SplashscreenState extends State<Splashscreen>
                       rotation: 3.1416 / 180 * -180 * _text2Animation.value,
                       child: Transform(
                         transform: Matrix4.translationValues(
-                            400 * _text2Animation.value, 0, 0),
+                          400 * _text2Animation.value,
+                          0,
+                          0,
+                        ),
                         child: const SizedBox(
                           width: 200,
                           height: 80,
@@ -179,7 +176,10 @@ class _SplashscreenState extends State<Splashscreen>
                       rotation: 3.1416 / 180 * -20 * _logoAnimation.value,
                       child: Transform(
                         transform: Matrix4.translationValues(
-                            60 * _logoAnimation.value, 0, 0),
+                          60 * _logoAnimation.value,
+                          0,
+                          0,
+                        ),
                         child: Container(
                           width: 73.6,
                           height: 73.6,
@@ -205,7 +205,7 @@ class _SplashscreenState extends State<Splashscreen>
                 bottom: -50,
                 left: 0,
                 right: 0,
-                child: MetroSpinner(),
+                child: ProgressBar(background: Colors.transparent),
               ),
             ],
           ),

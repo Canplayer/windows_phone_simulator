@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:metro_ui/app.dart';
 import 'package:metro_ui/metro_scroll_behavior.dart';
+import 'package:metro_ui/metro_theme_extensions.dart';
 import 'package:windows_phone_simulator/apps/about/about.dart';
 import 'package:windows_phone_simulator/apps/livebadgechanger/livebadgechanger.dart';
 import 'package:windows_phone_simulator/apps/customtiledemo/customtiledemo.dart';
@@ -38,7 +39,7 @@ class MyApp extends StatelessWidget {
       metroColor: Color.fromARGB(255, 229, 20, 0),
       useWVGAMode: true,
       //themeMode: MetroThemeMode.light,
-      //version: MetroDesignVersion.wp7,
+      version: MetroDesignVersion.wp81,
       //scrollBehavior: MetroScrollBehavior(),
       home: Splashscreen(),
     );
