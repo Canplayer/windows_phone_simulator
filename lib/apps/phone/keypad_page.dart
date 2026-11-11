@@ -152,7 +152,7 @@ class _KeypadPageState extends State<KeypadPage>
 
   @override
   Widget build(BuildContext context) {
-    // 动画作用在 MetroPageScaffold 外层，整个页面（含 Application Bar）一起上浮
+    // 动画作用在 MetroPageScaffold 外层，整个页面一起上浮
     return AnimatedBuilder(
       animation: _riseOffset,
       builder: (context, child) {
@@ -169,6 +169,8 @@ class _KeypadPageState extends State<KeypadPage>
         onDidPush: () async {
           await _playRiseAnimation();
         },
+        disableDefaultPopAnimation: true,
+        disableDefaultPushAnimation: true,
         applicationBar: MetroApplicationBar(
           buttons: [
             SizedBox(

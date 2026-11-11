@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
-import 'package:metro_ui/widgets/swipe_title_indicator.dart';
+import 'package:metro_ui/widgets/pivot.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -125,20 +125,18 @@ class _SwipePageDemoAppState extends State<SwipePageDemoApp> {
 
           // ── 滑动翻页区：标题指示器 + 滑动翻页组合 ──────────────
           Expanded(
-            child: SwipePages(
+            child: Pivot(
               items: [
                 for (var i = 0; i < _pageTitles.length; i++)
-                  SwipePageItem(
+                  PivotItem(
                     title: Text(
                       _pageTitles[i],
                     ),
                     page: _buildPage(i),
                   ),
               ],
-              // 演示参数透传：这些参数会传递给内部的 SwipePageView
-              flyDuration: const Duration(milliseconds: 300),
-              fadeDuration: const Duration(milliseconds: 120),
-              snapBackDuration: const Duration(milliseconds: 150),
+              // 不覆盖时长/阈值：沿用 Pivot 源码值
+              // （500 ms PivotMove(Log 150)、33% 一页宽、快滑判向）。
               onPageChanged: _onPageChanged,
               onTransitionEnd: _onTransitionEnd,
               onSlideProgress: _onSlideProgress,

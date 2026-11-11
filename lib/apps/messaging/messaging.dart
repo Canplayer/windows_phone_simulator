@@ -3,7 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/stack_panel.dart';
-import 'package:metro_ui/widgets/swipe_title_indicator.dart';
+import 'package:metro_ui/widgets/pivot.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -215,10 +215,10 @@ class _MessagingAppState extends State<MessagingApp> {
       body: Builder(
         // 使用 Builder 来获取正确的 context
         builder: (scaffoldContext) {
-          return const SwipePages(
+          return const Pivot(
                 items: [
-                  SwipePageItem(title: Text('system'), page: Text("data")),
-                  SwipePageItem(
+                  PivotItem(title: Text('system'), page: Text("data")),
+                  PivotItem(
                       title: Text('applications'), page: Text("data")),
                 ],
               );
