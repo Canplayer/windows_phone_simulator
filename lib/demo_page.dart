@@ -7,7 +7,8 @@ import 'package:metro_ui/widgets/metro_list_picker.dart';
 import 'package:metro_ui/widgets/metro_text_box.dart';
 import 'package:metro_ui/widgets/progress_bar.dart';
 import 'package:metro_ui/widgets/progress_ring.dart';
-import 'package:metro_ui/widgets/switcher.dart';
+import 'package:metro_ui/widgets/toggle_switch.dart';
+import 'package:metro_ui/widgets/list_item.dart';
 
 /// Demo 空白页面 —— 作为 "通过注册中心自注册" 的示例
 ///
@@ -59,6 +60,7 @@ class DemoPage extends StatefulWidget {
 
 class _DemoPageState extends State<DemoPage> {
   bool _switchValue = true;
+  bool _automaticBrightness = false;
   String? _pickedValue;
   String? _pickedValue2;
 
@@ -106,7 +108,11 @@ class _DemoPageState extends State<DemoPage> {
                         const SizedBox(height: 16),
                         const EditBox(hintText: '输入文字'),
                         ListPicker<String>(
-                          items: const ['mobile yersion', 'stop/refresh', 'tabs'],
+                          items: const [
+                            'mobile yersion',
+                            'stop/refresh',
+                            'tabs',
+                          ],
                           itemLabel: (v) => v,
                           value: _pickedValue,
                           placeholder: '请选择',
@@ -126,16 +132,70 @@ class _DemoPageState extends State<DemoPage> {
                       ],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 19.2, right: 19.2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('设置列表项'),
+                        DoubleLineListItem(
+                          headerText: 'Wi-Fi',
+                          subHeaderText: _switchValue ? '已开启' : '已关闭',
+                          onTap: () =>
+                              setState(() => _switchValue = !_switchValue),
+                        ),
+                        DoubleLineListItem(
+                          headerText: '亮度',
+                          subHeaderText: _automaticBrightness ? '自动调整' : '手动调整',
+                          onTap: () => setState(
+                            () => _automaticBrightness = !_automaticBrightness,
+                          ),
+                        ),
+                        const DoubleLineListItem(
+                          headerText: '禁用的设置项',
+                          subHeaderText: '此选项当前不可用',
+                          enabled: false,
+                        ),
+                        SingleLineListItem(headerText: '关于', onTap: () {}),
+                        const Text('完整 ToggleSwitch'),
+                        ToggleSwitch(
+                          label: 'Wi-Fi 网络',
+                          value: _switchValue,
+                          onLabel: '开启',
+                          offLabel: '关闭',
+                          description: '连接可用的无线网络。',
+                          onChanged: (value) =>
+                              setState(() => _switchValue = value),
+                        ),
+                        ToggleSwitch(
+                          label: '自动调整亮度',
+                          value: _automaticBrightness,
+                          onLabel: '开启',
+                          offLabel: '关闭',
+                          onChanged: (value) =>
+                              setState(() => _automaticBrightness = value),
+                        ),
+                        const ToggleSwitch(
+                          label: '禁用状态',
+                          value: true,
+                          onLabel: '开启',
+                          offLabel: '关闭',
+                          description: '开关、标签和说明共同呈现禁用状态。',
+                        ),
+                        const Text('独立 ToggleSwitchBase'),
+                      ],
+                    ),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CustomSwitch(
+                      ToggleSwitchBase(
                         value: _switchValue,
                         activeColor: Colors.white70,
                         onChanged: (v) => setState(() => _switchValue = v),
                       ),
                       const SizedBox(width: 24),
-                      const CustomSwitch(
+                      const ToggleSwitchBase(
                         value: false,
                         activeColor: Colors.white70,
                         onChanged: null,
