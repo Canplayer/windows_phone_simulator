@@ -11,6 +11,7 @@ import 'package:metro_ui/uix_metrics.dart';
 import 'package:metro_ui/uix_typography.dart';
 import 'package:metro_ui/widgets/pushable_double_line_list_item.dart';
 import 'package:metro_ui/widgets/search_bar.dart';
+import 'package:metro_ui/widgets/tile.dart';
 import 'package:metro_ui/widgets/uix_page_slide.dart';
 import 'package:metro_ui/widgets/uix_tight_text.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
@@ -297,10 +298,10 @@ class _PhoneAppState extends State<PhoneApp> {
             : MetroApplicationBar(
                 theme: wp8PhoneTheme,
                 buttons: [
-                  _historyCommand('voicemail', 'voicemail', widget.onVoicemail),
-                  _historyCommand('keypad', 'dialpad', _openDialer),
-                  _historyCommand('people', 'contacts', widget.onOpenPeople),
-                  _historyCommand('search', 'search', _showSearch),
+                  _historyCommand('voicemail', widget.onVoicemail),
+                  _historyCommand('keypad', _openDialer),
+                  _historyCommand('people', widget.onOpenPeople),
+                  _historyCommand('search', _showSearch),
                 ],
                 menuItems: [
                   MetroAppBarMenuItem(
@@ -456,91 +457,15 @@ class _PhoneAppState extends State<PhoneApp> {
     );
   }
 
-  MetroAppBarButton _historyCommand(
-    String label,
-    String asset,
-    VoidCallback? callback,
-  ) {
+  MetroAppBarButton _historyCommand(String label, VoidCallback? callback) {
     return MetroAppBarButton(
       label: label,
-      backgroundBuilder: _historyCommandFrame,
-      icon: Image.asset(
-        '$wp8PhoneAssets/$asset.png',
+      icon: SvgPicture.asset(
+        'images/icons/phone_appbar_$label.svg',
+        fit: BoxFit.contain,
         excludeFromSemantics: true,
       ),
       onPressed: callback,
-    );
-  }
-
-  Widget _historyCommandFrame(
-    BuildContext context,
-    bool pressed,
-    Color foreground,
-  ) {
-    final palette = Wp8PhonePalette.of(context);
-    if (!pressed) {
-      return Image.asset(
-        '$wp8PhoneAssets/appbar_circle_rest.png',
-        color: foreground,
-        excludeFromSemantics: true,
-      );
-    }
-
-    // ShellChrome!ApplicationBarItem replaces the red fill (chroma) with
-    // ForegroundAccentColor, preserving the black/white border and antialias.
-    final accent = palette.accent;
-    final filter = palette.light
-        ? ColorFilter.matrix([
-            accent.r,
-            0,
-            0,
-            0,
-            0,
-            accent.g,
-            0,
-            0,
-            0,
-            0,
-            accent.b,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ])
-        : ColorFilter.matrix([
-            0,
-            1 - accent.r,
-            0,
-            0,
-            accent.r * 255,
-            0,
-            1 - accent.g,
-            0,
-            0,
-            accent.g * 255,
-            0,
-            1 - accent.b,
-            0,
-            0,
-            accent.b * 255,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]);
-    final brightness = palette.light ? 'light' : 'dark';
-    return ColorFiltered(
-      colorFilter: filter,
-      child: Image.asset(
-        '$wp8PhoneAssets/appbar_circle_${brightness}_down.png',
-        excludeFromSemantics: true,
-      ),
     );
   }
 
@@ -712,12 +637,11 @@ class _CallBackButtonState extends State<_CallBackButton> {
       button: true,
       label: 'call back',
       enabled: callback != null,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: Tile(
+        // RealCallHistoryItem's icon is a UIX ImageButton, with TiltBase.
+        localTiltProjection: true,
         onTap: callback,
-        onTapDown: callback == null ? null : (_) => _setDown(true),
-        onTapUp: callback == null ? null : (_) => _setDown(false),
-        onTapCancel: callback == null ? null : () => _setDown(false),
+        onTouch: callback == null ? null : _setDown,
         child: Padding(
           // CallButtonStyle_ImageButtonPadding. The PNG fills only its own box.
           padding: const EdgeInsetsDirectional.only(

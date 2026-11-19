@@ -1,7 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metro_ui/app.dart';
 import 'package:metro_ui/application_bar.dart';
+import 'package:metro_ui/widgets/metro_circle_button.dart';
 import 'package:metro_ui/widgets/phone_keypad.dart';
 import 'package:metro_ui/widgets/pushable_double_line_list_item.dart';
 import 'package:metro_ui/widgets/tile.dart';
@@ -34,7 +39,7 @@ void main() {
     (widget) => widget is MetroAppBarButton && widget.label == label,
   );
 
-  testWidgets('history uses the four original images and a flat row', (
+  testWidgets('history uses the four authored SVGs and a flat row', (
     tester,
   ) async {
     await start(tester);
@@ -49,33 +54,29 @@ void main() {
     ]);
     expect(
       buttons.map(
-        (button) => ((button.icon as Image).image as AssetImage).assetName,
+        (button) => ((button.icon as SvgPicture).bytesLoader as SvgAssetLoader)
+            .assetName,
       ),
       [
-        for (final asset in ['voicemail', 'dialpad', 'contacts', 'search'])
-          'images/wp8_phone/$asset.png',
+        for (final name in ['voicemail', 'keypad', 'people', 'search'])
+          'images/icons/phone_appbar_$name.svg',
       ],
     );
     expect(find.text('PHONE'), findsOneWidget);
     expect(find.text('history'), findsOneWidget);
     expect(find.text('Missed call, 1/16/2015'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(CallHistoryTile),
-        matching: find.byType(Tile),
-      ),
-      findsNothing,
-    );
     expect(find.byType(ListTile), findsNothing);
 
     final row = find.byType(PushableDoubleLineListItem).at(1);
+    final number = find.descendant(
+      of: row,
+      matching: find.text('13901234567', findRichText: true),
+    );
     final transform = find.descendant(
       of: row,
-      matching: find.byType(Transform),
+      matching: find.ancestor(of: number, matching: find.byType(Transform)),
     );
-    final gesture = await tester.startGesture(
-      tester.getCenter(find.text('13901234567', findRichText: true).first),
-    );
+    final gesture = await tester.startGesture(tester.getCenter(number));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     final matrix = tester.widget<Transform>(transform).transform;
@@ -114,6 +115,129 @@ void main() {
       expect(box.height, lessThan(tester.getSize(paragraph).height));
     }
   });
+
+  Transform pressTransform(WidgetTester tester, Finder tile) => tester.widget(
+    find.descendant(of: tile, matching: find.byType(Transform)).first,
+  );
+
+  testWidgets('history callback tilts its own bitmap and clears on cancel', (
+    tester,
+  ) async {
+    await start(tester);
+    final row = find.byType(CallHistoryTile).at(1);
+    final tile = find.descendant(of: row, matching: find.byType(Tile));
+    final image = find.descendant(of: tile, matching: find.byType(Image));
+    String asset() =>
+        (tester.widget<Image>(image).image as AssetImage).assetName;
+    final rect = tester.getRect(image);
+    final finger = await tester.startGesture(rect.center);
+    await tester.pump(const Duration(milliseconds: 51));
+    expect(asset(), endsWith('callback_dark_down.png'));
+    expect(tester.getRect(image).width, lessThan(rect.width));
+    await finger.cancel();
+    await tester.pumpAndSettle();
+    expect(asset(), endsWith('callback_dark_rest.png'));
+    expect(tester.getRect(image), rect);
+    expect(find.byType(PhoneCallProgress), findsNothing);
+  });
+
+  testWidgets('application bar presses the vector ring and fires one command', (
+    tester,
+  ) async {
+    var calls = 0;
+    await start(tester, home: PhoneApp(onVoicemail: () => calls++));
+    final circle = find.descendant(
+      of: command('voicemail'),
+      matching: find.byType(MetroCircleButton),
+    );
+    final ring = find.descendant(
+      of: circle,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+      ),
+    );
+    Color? fill() =>
+        (tester.widget<DecoratedBox>(ring).decoration as BoxDecoration).color;
+    final accent = Theme.of(tester.element(circle)).colorScheme.primary;
+    final rest = tester.getRect(circle);
+    expect(fill(), isNull);
+    final finger = await tester.startGesture(rest.center);
+    await tester.pump(const Duration(milliseconds: 51));
+    expect(fill(), accent);
+    expect(tester.getRect(ring).width, lessThan(rest.width));
+    expect(
+      find.descendant(of: circle, matching: find.byType(SvgPicture)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: circle, matching: find.byType(Image)),
+      findsNothing,
+    );
+    await finger.up();
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(fill(), isNull);
+    expect(tester.getRect(circle), rest);
+  });
+
+  for (final mode in [MetroThemeMode.light, MetroThemeMode.dark]) {
+    testWidgets(
+      'classic frame recolors the fill and retains the ${mode.name} rim',
+      (tester) async {
+        const key = ValueKey('classic frame');
+        const accent = Color(0xffa04010);
+        await start(
+          tester,
+          themeMode: mode,
+          home: const Center(
+            child: RepaintBoundary(
+              key: key,
+              child: MetroCircleButton(
+                iconMode: true,
+                icon: SizedBox.shrink(),
+                frameStyle: MetroCircleFrameStyle.classicBitmap,
+                themeColor: accent,
+                size: 48,
+                pressed: true,
+              ),
+            ),
+          ),
+        );
+        final image = tester.widget<Image>(find.byType(Image));
+        final asset = image.image as AssetImage;
+        expect(asset.package, 'metro_ui');
+        expect(
+          asset.assetName,
+          endsWith('appbar_circle_${mode.name}_down.png'),
+        );
+        await tester.runAsync(
+          () => precacheImage(asset, tester.element(find.byKey(key))),
+        );
+        await tester.pump();
+
+        await tester.runAsync(() async {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(key),
+          );
+          final rendered = await boundary.toImage();
+          final bytes = (await rendered.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          ))!;
+          int pixel(int x, int y) =>
+              bytes.getUint32((y * rendered.width + x) * 4);
+          expect(pixel(24, 24), 0xa04010ff);
+          expect(
+            pixel(2, 24),
+            mode == MetroThemeMode.dark ? 0xffffffff : 0x000000ff,
+          );
+          expect(pixel(0, 0), 0);
+          rendered.dispose();
+        });
+      },
+    );
+  }
 
   testWidgets('software Back closes the dialer and search', (tester) async {
     await start(tester);
@@ -209,7 +333,15 @@ void main() {
     }
 
     await open();
-    await tester.tap(find.text('cancel'));
+    final cancel = find.text('cancel');
+    final tile = find.ancestor(of: cancel, matching: find.byType(Tile));
+    final gesture = await tester.startGesture(tester.getCenter(cancel));
+    await tester.pump(const Duration(milliseconds: 51));
+    expect(pressTransform(tester, tile).transform.entry(3, 3), greaterThan(1));
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+    expect(pressTransform(tester, tile).transform.entry(3, 3), 1);
+    await tester.tap(cancel);
     await tester.pumpAndSettle();
     expect(rows, findsNWidgets(count));
     await open();

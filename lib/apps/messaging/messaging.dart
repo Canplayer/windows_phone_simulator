@@ -152,7 +152,7 @@ class _MessagingAppState extends State<MessagingApp> {
           MetroApplicationBar(backgroundColor: Colors.grey[900], buttons: [
         MetroAppBarButton(
           icon: SvgPicture.asset(
-            'images/icons/phone_1.svg',
+            'images/icons/phone_appbar_voicemail.svg',
             fit: BoxFit.contain,
             colorFilter: const ColorFilter.mode(
               Colors.white,
@@ -164,7 +164,7 @@ class _MessagingAppState extends State<MessagingApp> {
         ),
         MetroAppBarButton(
           icon: SvgPicture.asset(
-            'images/icons/phone_2.svg',
+            'images/icons/phone_appbar_keypad.svg',
             fit: BoxFit.contain,
             colorFilter: const ColorFilter.mode(
               Colors.white,
@@ -176,7 +176,7 @@ class _MessagingAppState extends State<MessagingApp> {
         ),
         MetroAppBarButton(
           icon: SvgPicture.asset(
-            'images/icons/phone_3.svg',
+            'images/icons/phone_appbar_people.svg',
             fit: BoxFit.contain,
             colorFilter: const ColorFilter.mode(
               Colors.white,
@@ -188,7 +188,7 @@ class _MessagingAppState extends State<MessagingApp> {
         ),
         MetroAppBarButton(
           icon: SvgPicture.asset(
-            'images/icons/phone_4.svg',
+            'images/icons/phone_appbar_search.svg',
             fit: BoxFit.contain,
             colorFilter: const ColorFilter.mode(
               Colors.white,
