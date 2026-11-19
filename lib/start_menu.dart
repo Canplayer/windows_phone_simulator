@@ -9,6 +9,7 @@ import 'package:metro_ui/metro_page_push.dart';
 import 'package:metro_ui/page.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:windows_phone_simulator/global_perspective.dart';
+import 'package:metro_ui/widgets/uix_tight_text.dart';
 
 //磁贴大小枚举
 enum TileSize {
@@ -1527,12 +1528,14 @@ class _MetroAppTileState extends State<MetroAppTile>
                     alignment: Alignment.center,
                     transform: Matrix4.identity()
                       ..rotateX(_rotationAnimation.value * math.pi),
-                    child: Text(
-                      '$_displayCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w300,
+                    child: UixTightText.fromText(
+                      Text(
+                        '$_displayCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
                     ),
                   );

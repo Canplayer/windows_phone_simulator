@@ -1,30 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:windows_phone_simulator/main.dart';
+import 'package:windows_phone_simulator/app_registry.dart';
+import 'package:windows_phone_simulator/apps/phone/phone.dart';
+import 'package:windows_phone_simulator/launcher.dart';
+import 'package:windows_phone_simulator/main.dart' as app;
+import 'package:windows_phone_simulator/splashscreen_page.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('Android simulator boots, opens Phone, and returns from it', (
+    tester,
+  ) async {
+    addTearDown(AppRegistry().clear);
+    app.main();
     await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  });
+    expect(find.byType(Splashscreen), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.byType(LauncherPage), findsOneWidget);
+    await tester.tap(find.byType(PhoneLiveTile));
+    await tester.pumpAndSettle();
+    expect(find.byType(PhoneApp), findsOneWidget);
+    expect(find.text('history'), findsOneWidget);
+    final back = find.bySemanticsLabel('Back');
+    expect(back, findsOneWidget);
+    await tester.tapAt(const Offset(22, 24));
+    await tester.pumpAndSettle();
+    expect(find.byType(PhoneApp), findsNothing);
+    expect(find.byType(LauncherPage), findsOneWidget);
+    // Finish the pinned tile's pending demo updates before teardown.
+    for (var i = 0; i < 7; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+  }, variant: const TargetPlatformVariant({TargetPlatform.android}));
 }

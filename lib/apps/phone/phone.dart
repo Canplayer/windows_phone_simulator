@@ -1,15 +1,25 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/metro_page_push.dart';
+import 'package:metro_ui/metro_theme.dart';
 import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
-import 'package:metro_ui/widgets/metro_circle_button.dart';
-import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/widgets/message_box.dart';
+import 'package:metro_ui/uix_metrics.dart';
+import 'package:metro_ui/uix_typography.dart';
+import 'package:metro_ui/widgets/pushable_double_line_list_item.dart';
+import 'package:metro_ui/widgets/search_bar.dart';
+import 'package:metro_ui/widgets/uix_page_slide.dart';
+import 'package:metro_ui/widgets/uix_tight_text.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
+
+import 'call_progress.dart';
+import 'call_settings_page.dart';
 import 'keypad_page.dart';
+import 'wp8_phone_palette.dart';
 
 /// 自驱动的 Phone 磁贴：不关心外界的创建/销毁，
 /// 挂载到屏幕上即开始播放角标时序：等 2s → 1 → 2 → 3 → 4 → 5，卸载时自动停止。
@@ -96,7 +106,30 @@ class _PhoneLiveTileState extends State<PhoneLiveTile> {
 }
 
 class PhoneApp extends StatefulWidget {
-  const PhoneApp({super.key});
+  const PhoneApp({
+    super.key,
+    this.branding = 'PHONE',
+    this.onVoicemail,
+    this.onOpenPeople,
+    this.onOpenSettings,
+    this.settingsModel,
+    this.onOpenHistoryItem,
+    this.onSaveContact,
+    this.onPlaceCall,
+    this.onSearchContacts,
+    this.formatNumber,
+  });
+
+  final String branding;
+  final VoidCallback? onVoicemail;
+  final VoidCallback? onOpenPeople;
+  final VoidCallback? onOpenSettings;
+  final PhoneSettingsModel? settingsModel;
+  final ValueChanged<CallRecord>? onOpenHistoryItem;
+  final ValueChanged<String>? onSaveContact;
+  final bool Function(String number)? onPlaceCall;
+  final ValueChanged<String>? onSearchContacts;
+  final String Function(String number)? formatNumber;
 
   // ─── 图标模板 ─────────────────────────────────
   // 以“高度”为基准等比缩放：传目标高度即可，宽度按 SVG 宽高比自动计算。
@@ -107,30 +140,29 @@ class PhoneApp extends StatefulWidget {
       'images/icons/phone_icon.svg',
       height: height,
       fit: BoxFit.contain, // 保持宽高比，等价于“以高度缩放”
-      colorFilter: const ColorFilter.mode(
-        Colors.white,
-        BlendMode.srcIn,
-      ),
+      colorFilter: const ColorFilter.mode(Color(0xffffffff), BlendMode.srcIn),
     );
   }
 
   static void register() {
-    AppRegistry().register(App(
-      id: 'com.ms.phone',
-      name: 'Phone',
-      //themeColor: Colors.purple,
-      icon: appIcon(32), // 应用列表图标
-      page: const PhoneApp(),
-      smallTile: PhoneLiveTile(
-        size: LiveTileSize.small,
-        icon: appIcon(36), // 小磁贴：画布 79.5px，占比约 45%
+    AppRegistry().register(
+      App(
+        id: 'com.ms.phone',
+        name: 'Phone',
+        //themeColor: Colors.purple,
+        icon: appIcon(32), // 应用列表图标
+        page: const PhoneApp(),
+        smallTile: PhoneLiveTile(
+          size: LiveTileSize.small,
+          icon: appIcon(36), // 小磁贴：画布 79.5px，占比约 45%
+        ),
+        mediumTile: PhoneLiveTile(
+          size: LiveTileSize.medium,
+          name: const Text('Phone'),
+          icon: appIcon(72), // 中磁贴：画布 168px，占比约 43%
+        ),
       ),
-      mediumTile: PhoneLiveTile(
-        size: LiveTileSize.medium,
-        name: const Text('Phone'),
-        icon: appIcon(72), // 中磁贴：画布 168px，占比约 43%
-      ),
-    ));
+    );
   }
 
   @override
@@ -138,145 +170,388 @@ class PhoneApp extends StatefulWidget {
 }
 
 class _PhoneAppState extends State<PhoneApp> {
-  /// 页面 Scaffold 的 key：跳转到下一页时传给 metroPagePush，
-  /// 以便找到当前页面的 MetroPageScaffoldState 播放推场动画
-  /// （不传的话，跳转 context 在 Scaffold 之上，maybeOf 找不到 → 无动画直接切页）。
-  final GlobalKey<MetroPageScaffoldState> _scaffoldKey =
-      GlobalKey<MetroPageScaffoldState>();
+  final _scaffoldKey = GlobalKey<MetroPageScaffoldState>();
+  final _slide = GlobalKey<UixPageSlideState>();
+  final _searchSlide = GlobalKey<UixPageSlideState>();
+  final _searchFocus = FocusNode();
+  final _searchText = TextEditingController();
+  var _searching = false;
+  var _dialerOpen = false;
+  late final _settings = widget.settingsModel ?? PhoneSettingsModel();
+  var _nextRecordId = _sampleCallRecords.length;
+  var _history = <int, CallRecord>{
+    for (final (index, record) in _sampleCallRecords.indexed) index: record,
+  };
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _searchText.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openDialer() async {
+    if (_dialerOpen) return;
+    _dialerOpen = true;
+    String? acceptedNumber;
+    try {
+      await metroPagePush(
+        context,
+        MetroPageRoute(
+          builder: (_) => KeypadPage(
+            branding: widget.branding,
+            onDial: (number) {
+              if (!_placeCall(number)) return false;
+              acceptedNumber = number;
+              return true;
+            },
+            formatNumber: widget.formatNumber,
+            onSaveContact: widget.onSaveContact,
+            onVoicemail: widget.onVoicemail,
+          ),
+        ),
+        scaffoldKey: _scaffoldKey,
+      );
+    } finally {
+      _dialerOpen = false;
+    }
+    if (mounted && acceptedNumber != null && widget.onPlaceCall == null) {
+      await _showProgress(acceptedNumber!);
+    }
+  }
+
+  Future<void> _showProgress(String number, {String? displayName}) {
+    return PhoneCallProgress(
+      number: widget.formatNumber?.call(number) ?? number,
+      branding: widget.branding,
+      displayName: displayName,
+    ).show(context);
+  }
+
+  void _callBack(CallRecord record) {
+    final number = record.callbackNumber;
+    if (number != null && _placeCall(number) && widget.onPlaceCall == null) {
+      _showProgress(number, displayName: record.contactName);
+    }
+  }
+
+  void _openSettings() {
+    metroPagePush(
+      context,
+      MetroPageRoute(builder: (_) => CallSettingsPage(model: _settings)),
+      scaffoldKey: _scaffoldKey,
+    );
+  }
+
+  bool _placeCall(String number) {
+    final handler = widget.onPlaceCall;
+    if (handler != null && !handler(number)) return false;
+    final now = DateTime.now();
+    final record = CallRecord(
+      kind: CallKind.outgoing,
+      number: number,
+      timeLabel: '${now.month}/${now.day}/${now.year}',
+    );
+    setState(() => _history = {_nextRecordId++: record, ..._history});
+    return true;
+  }
+
+  void _showSearch() {
+    setState(() => _searching = true);
+    _searchFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchSlide.currentState?.show();
+    });
+  }
+
+  Future<void> _hideSearch() async {
+    _searchFocus.unfocus();
+    await _searchSlide.currentState?.hide();
+    if (!mounted) return;
+    _searchText.clear();
+    setState(() => _searching = false);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return MetroPageScaffold(
-      key: _scaffoldKey,
-      extendBodyToApplicationBar: false,
-      
-      stackPanel: const StackPanel(
-        top: Text('CHINA UNICOM'),
-        bottom: Text('history'),
-      ),
-      onDidPushNext: <T>(T data) async {
-        debugPrint('PhoneApp: onDidPushNext');
-        // 推入下一页前调用：metroPagePush 会 await 此回调完成后再 push，
-        // 在这里放自定义推场动画即可替代默认动画（playDefaultPushNextAnimation）
-      },
-      onDidPopNext: () {
-        debugPrint('PhoneApp: onDidPopNext');
-      },
-      // onDidPop: () async{
-      //   debugPrint('PhoneApp: onDidPop');
-      // },
-      // onDidPush: () async {
-      //   debugPrint('PhoneApp: onDidPush');
-      // },
-      applicationBar: MetroApplicationBar(buttons: [
-        MetroAppBarButton(
-          icon: SvgPicture.asset(
-            'images/icons/phone_1.svg',
-            fit: BoxFit.contain,
-            colorFilter: const ColorFilter.mode(
-              Colors.white,
-              BlendMode.srcIn,
-            ),
-          ),
-          label: 'voicemail',
-          onPressed: () {},
-        ),
-        MetroAppBarButton(
-          icon: SvgPicture.asset(
-            'images/icons/phone_2.svg',
-            fit: BoxFit.contain,
-            colorFilter: const ColorFilter.mode(
-              Colors.white,
-              BlendMode.srcIn,
-            ),
-          ),
-          label: 'keypad',
-          onPressed: () {
-            metroPagePush(
-              context,
-              MetroPageRoute(builder: (context) => const KeypadPage()),
-              // 传入当前页面 Scaffold 的 key，触发默认推场动画
-              // （当前页 Y 轴旋转 40.5°，动画完成后才真正 push 新页面）
-              scaffoldKey: _scaffoldKey,
-            );
-          },
-        ),
-        MetroAppBarButton(
-          icon: SvgPicture.asset(
-            'images/icons/phone_3.svg',
-            fit: BoxFit.contain,
-            colorFilter: const ColorFilter.mode(
-              Colors.white,
-              BlendMode.srcIn,
-            ),
-          ),
-          label: 'people',
-          onPressed: () {},
-        ),
-        MetroAppBarButton(
-          icon: SvgPicture.asset(
-            'images/icons/phone_4.svg',
-            fit: BoxFit.contain,
-            colorFilter: const ColorFilter.mode(
-              Colors.white,
-              BlendMode.srcIn,
-            ),
-          ),
-          label: 'search',
-          onPressed: () {},
-        ),
-      ], menuItems: [
-        MetroAppBarMenuItem(
-          label: 'delete all',
-          onPressed: () {},
-        ),
-        MetroAppBarMenuItem(
-          label: 'settings',
-          onPressed: () {},
-        ),
-        MetroAppBarMenuItem(
-          label: 'blocked calls',
-          onPressed: () {},
-        ),
-      ]),
-      body: Stack(
-        children: [
-          // 通话记录列表
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsetsGeometry.symmetric(horizontal: 18),
-              //padding: const EdgeInsetsGeometry.symmetric(horizontal: 0),
+  Widget build(BuildContext context) => MetroTheme(
+    data: wp8PhoneTheme,
+    child: Builder(builder: _buildPage),
+  );
+
+  Widget _buildPage(BuildContext context) {
+    final palette = Wp8PhonePalette.of(context);
+    final filter = _searchText.text.toLowerCase();
+    final entries = _history.entries.where(
+      (entry) =>
+          !_searching || entry.value.number.toLowerCase().contains(filter),
+    );
+    final showSearchContacts = _searching && filter.isNotEmpty;
+    final onSearchContacts = widget.onSearchContacts;
+    return PhoneBackKey(
+      child: MetroPageScaffold(
+        key: _scaffoldKey,
+        useMaterialSurface: false,
+        extendBodyToApplicationBar: false,
+        applicationBar: _searching
+            ? null
+            : MetroApplicationBar(
+                theme: wp8PhoneTheme,
+                buttons: [
+                  _historyCommand('voicemail', 'voicemail', widget.onVoicemail),
+                  _historyCommand('keypad', 'dialpad', _openDialer),
+                  _historyCommand('people', 'contacts', widget.onOpenPeople),
+                  _historyCommand('search', 'search', _showSearch),
+                ],
+                menuItems: [
+                  MetroAppBarMenuItem(
+                    label: 'delete all',
+                    onPressed: _history.isEmpty
+                        ? null
+                        : () => _confirmDeleteAll(context),
+                  ),
+                  MetroAppBarMenuItem(
+                    label: 'settings',
+                    onPressed: widget.onOpenSettings ?? _openSettings,
+                  ),
+                ],
+              ),
+        disableDefaultPushNextAnimation: true,
+        onDidPushNext: <T>(T _) async {
+          if (_dialerOpen) {
+            await _slide.currentState?.hide();
+          } else {
+            await _scaffoldKey.currentState?.playDefaultPushNextAnimation();
+          }
+        },
+        disableDefaultPopNextAnimation: true,
+        onDidPopNext: () {
+          if (_dialerOpen) {
+            _slide.currentState?.show();
+          } else {
+            _scaffoldKey.currentState?.playDefaultPopNextAnimation();
+          }
+        },
+        onWillPop: !_searching
+            ? null
+            : () async {
+                await _hideSearch();
+                return false;
+              },
+        body: PopScope(
+          canPop: !_searching,
+          child: UixPageSlide(
+            key: _slide,
+            child: SafeArea(
+              minimum: EdgeInsets.fromLTRB(
+                24 * uixScale,
+                (_searching ? 24 : 56) * uixScale,
+                24 * uixScale,
+                0,
+              ),
+              bottom: false,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final record in _sampleCallRecords)
-                    CallHistoryTile(
-                      icon: SvgPicture.asset(
-                        height: 18,
-                        'images/icons/phone_icon.svg',
-                        fit: BoxFit.contain, // 保持宽高比，等价于“以高度缩放”
-                        colorFilter: const ColorFilter.mode(
-                          Colors.white,
-                          BlendMode.srcIn,
+                  if (_searching)
+                    UixPageSlide(
+                      key: _searchSlide,
+                      fromTop: true,
+                      initiallyVisible: false,
+                      child: MetroSearchBar(
+                        controller: _searchText,
+                        focusNode: _searchFocus,
+                        backgroundImage: AssetImage(
+                          '$wp8PhoneAssets/editbox_${palette.light ? 'light' : 'dark'}.png',
                         ),
+                        onChanged: (_) => setState(() {}),
                       ),
-                      record: record,
-                      menu: const MetroContextMenuItem(
-                        child: Text('delete item'),
+                    )
+                  else ...[
+                    UixTightText(
+                      widget.branding,
+                      style: TextStyle(
+                        fontSize: uixFontSize(17),
+                        fontWeight: UixFontWeight.semiBold,
+                        color: palette.textHigh,
                       ),
                     ),
+                    const SizedBox(height: 22 * uixScale),
+                    UixTightText(
+                      'history',
+                      style: TextStyle(
+                        fontSize: uixFontSize(54),
+                        fontWeight: UixFontWeight.semiLight,
+                        color: palette.textHigh,
+                      ),
+                    ),
+                  ],
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(top: 4 * uixScale),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (entries.isEmpty)
+                            Text(
+                              _searching
+                                  ? 'No results'
+                                  : 'To make a call, tap an icon below.',
+                            ),
+                          for (final entry in entries)
+                            CallHistoryTile(
+                              key: ValueKey(('phone-history', entry.key)),
+                              record: entry.value,
+                              highlightQuery: _searching
+                                  ? _searchText.text
+                                  : null,
+                              onCallBack: entry.value.callbackNumber == null
+                                  ? null
+                                  : () => _callBack(entry.value),
+                              onTap: widget.onOpenHistoryItem == null
+                                  ? null
+                                  : () =>
+                                        widget.onOpenHistoryItem!(entry.value),
+                              menu: MetroContextMenuItem(
+                                onTap: () =>
+                                    setState(() => _history.remove(entry.key)),
+                                child: const Text('delete item'),
+                              ),
+                            ),
+                          if (showSearchContacts)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: 26 * uixScale,
+                              ),
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: onSearchContacts == null
+                                    ? null
+                                    : () => onSearchContacts(_searchText.text),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12 * uixScale,
+                                  ),
+                                  child: Text(
+                                    'search contacts',
+                                    maxLines: 2,
+                                    style: TextStyle(
+                                      fontSize: uixFontSize(25),
+                                      fontWeight: UixFontWeight.normal,
+                                      color: palette.textHigh,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  MetroAppBarButton _historyCommand(
+    String label,
+    String asset,
+    VoidCallback? callback,
+  ) {
+    return MetroAppBarButton(
+      label: label,
+      backgroundBuilder: _historyCommandFrame,
+      icon: Image.asset(
+        '$wp8PhoneAssets/$asset.png',
+        excludeFromSemantics: true,
+      ),
+      onPressed: callback,
+    );
+  }
+
+  Widget _historyCommandFrame(
+    BuildContext context,
+    bool pressed,
+    Color foreground,
+  ) {
+    final palette = Wp8PhonePalette.of(context);
+    if (!pressed) {
+      return Image.asset(
+        '$wp8PhoneAssets/appbar_circle_rest.png',
+        color: foreground,
+        excludeFromSemantics: true,
+      );
+    }
+
+    // ShellChrome!ApplicationBarItem replaces the red fill (chroma) with
+    // ForegroundAccentColor, preserving the black/white border and antialias.
+    final accent = palette.accent;
+    final filter = palette.light
+        ? ColorFilter.matrix([
+            accent.r,
+            0,
+            0,
+            0,
+            0,
+            accent.g,
+            0,
+            0,
+            0,
+            0,
+            accent.b,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+          ])
+        : ColorFilter.matrix([
+            0,
+            1 - accent.r,
+            0,
+            0,
+            accent.r * 255,
+            0,
+            1 - accent.g,
+            0,
+            0,
+            accent.g * 255,
+            0,
+            1 - accent.b,
+            0,
+            0,
+            accent.b * 255,
+            0,
+            0,
+            0,
+            1,
+            0,
+          ]);
+    final brightness = palette.light ? 'light' : 'dark';
+    return ColorFiltered(
+      colorFilter: filter,
+      child: Image.asset(
+        '$wp8PhoneAssets/appbar_circle_${brightness}_down.png',
+        excludeFromSemantics: true,
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteAll(BuildContext context) async {
+    final result = await const MetroMessageBox(
+      title: 'Delete call history',
+      message: 'Are you sure you want to delete the entire call history list?',
+      confirmLabel: 'delete',
+      cancelLabel: 'cancel',
+    ).show(context);
+    if (result == true && mounted) setState(_history.clear);
   }
 }
 
@@ -285,6 +560,7 @@ const List<CallRecord> _sampleCallRecords = [
   CallRecord(
     kind: CallKind.outgoing,
     number: 'Emergency call',
+    canCallBack: false,
     timeLabel: '1/16/2015',
   ),
   CallRecord(
@@ -297,16 +573,8 @@ const List<CallRecord> _sampleCallRecords = [
     number: '9981123456',
     timeLabel: '1/16/2015',
   ),
-  CallRecord(
-    kind: CallKind.outgoing,
-    number: '95588',
-    timeLabel: '1/15/2015',
-  ),
-  CallRecord(
-    kind: CallKind.incoming,
-    number: '10086',
-    timeLabel: '1/14/2015',
-  ),
+  CallRecord(kind: CallKind.outgoing, number: '95588', timeLabel: '1/15/2015'),
+  CallRecord(kind: CallKind.incoming, number: '10086', timeLabel: '1/14/2015'),
   CallRecord(
     kind: CallKind.missed,
     number: '400-800-8888',
@@ -325,18 +593,11 @@ const List<CallRecord> _sampleCallRecords = [
   CallRecord(
     kind: CallKind.outgoing,
     number: 'Emergency call',
+    canCallBack: false,
     timeLabel: '1/16/2015',
   ),
-  CallRecord(
-    kind: CallKind.outgoing,
-    number: '95588',
-    timeLabel: '1/15/2015',
-  ),
-  CallRecord(
-    kind: CallKind.incoming,
-    number: '10086',
-    timeLabel: '1/14/2015',
-  ),
+  CallRecord(kind: CallKind.outgoing, number: '95588', timeLabel: '1/15/2015'),
+  CallRecord(kind: CallKind.incoming, number: '10086', timeLabel: '1/14/2015'),
   CallRecord(
     kind: CallKind.missed,
     number: '400-800-8888',
@@ -344,244 +605,132 @@ const List<CallRecord> _sampleCallRecords = [
   ),
 ];
 
-/// 通话方向
 enum CallKind { outgoing, incoming, missed }
 
-/// 单条通话记录的数据模型
 class CallRecord {
-  final CallKind kind;
-  final String number;
-  final String timeLabel;
-
   const CallRecord({
     required this.kind,
     required this.number,
     required this.timeLabel,
+    this.canCallBack = true,
+    this.contactName,
+    this.methodLabel,
   });
 
-  /// 方向文案（WP 风格）
-  String get directionLabel => switch (kind) {
-        CallKind.outgoing => 'Outgoing',
-        CallKind.incoming => 'Incoming',
-        CallKind.missed => 'Missed',
-      };
+  final CallKind kind;
+  final String number;
+  final String timeLabel;
+  final bool canCallBack;
+  final String? contactName;
+  final String? methodLabel;
 
-  /// 号码颜色：未接来电用 WP 红，其余白色
-  Color get numberColor => switch (kind) {
-        CallKind.missed => const Color(0xFFE81123),
-        _ => Colors.white,
-      };
+  String get header => contactName ?? number;
+  String? get callbackNumber => canCallBack ? number : null;
+
+  // PhoneRes string IDs 10070–10072 and 10124–10125 (en-US).
+  String get subHeader {
+    final direction = switch (kind) {
+      CallKind.outgoing => 'Outgoing',
+      CallKind.incoming => 'Incoming',
+      CallKind.missed => 'Missed call',
+    };
+    final method = methodLabel;
+    return method == null
+        ? '$direction, $timeLabel'
+        : '$direction, $method, $timeLabel';
+  }
 }
 
-/// 通用的通话记录行组件：圆形图标 + 号码 + 方向/时间，
-/// 支持长按上下文菜单与点击回调。
 class CallHistoryTile extends StatelessWidget {
-  final Widget icon;
-  final CallRecord record;
-  final MetroContextMenuItem? menu;
-  final VoidCallback? onTap;
-  final double iconSize;
-  final TextStyle? numberStyle;
-  final TextStyle? detailStyle;
-
   const CallHistoryTile({
     super.key,
-    required this.icon,
     required this.record,
-    this.menu,
+    required this.menu,
+    this.highlightQuery,
     this.onTap,
-    this.iconSize = 34.5, // 43.125 * 0.8
-    this.numberStyle,
-    this.detailStyle,
+    this.onCallBack,
   });
 
+  final CallRecord record;
+  final MetroContextMenuItem menu;
+  final String? highlightQuery;
+  final VoidCallback? onTap;
+  final VoidCallback? onCallBack;
+
   @override
   Widget build(BuildContext context) {
-    Widget row = Stack(
-      clipBehavior: Clip.none,
-      children: [
-        const SizedBox(
-          height: 82 * 0.8,
-          width: double.infinity,
-        ),
-        Positioned(
-          top: 5 * 0.8,
-          left: 2 * 0.8,
-          child: MetroCircleButton(
-            size: iconSize,
-            icon: Center(child: icon),
-            onPressed: () {},
+    final palette = Wp8PhonePalette.of(context);
+    return MetroContextMenu(
+      menu: menu,
+      child: PushableDoubleLineListItem(
+        header: record.header,
+        enabled: record.canCallBack,
+        highlightQuery: highlightQuery,
+        highlightColor: palette.accent,
+        subHeader: record.subHeader,
+        headerColor: palette.textHigh,
+        subHeaderColor: record.kind == CallKind.missed
+            ? palette.accent
+            : palette.textMid,
+        onPressed: onTap,
+        leading: Padding(
+          // RealCallHistory_iconMargin is separate from the ImageButton padding.
+          padding: const EdgeInsetsDirectional.only(end: uixScale),
+          child: Opacity(
+            opacity: record.canCallBack ? 1 : .5,
+            child: _CallBackButton(light: palette.light, onTap: onCallBack),
           ),
         ),
-        // 号码 + 方向/时间：嵌套一个 Stack 组合成整体，方便对整个组合做动画
-        Positioned.fill(
-          // 按压缩放反馈：参考 metro_ui Tile 的按压逻辑（即时反馈、松手回弹），
-          // 去掉 3D 旋转，仅保留缩放
-          child: _PressScale(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned(
-                  left: 60.5 * 0.8,
-                  top: -3.5 * 0.8,
-                  child: Text(
-                    record.number,
-                    style: numberStyle ??
-                        const TextStyle(
-                          fontSize: 37 * 0.8,
-                          fontWeight: FontWeight(300),
-                          letterSpacing: 0.5,
-                        ),
-                  ),
-                ),
-                Positioned(
-                  top: 42 * 0.8,
-                  left: 63 * 0.8,
-                  child: Text(
-                    '${record.directionLabel}, ${record.timeLabel}',
-                    style: detailStyle ??
-                        TextStyle(
-                          fontWeight: FontWeight(300),
-                          fontSize: 19 * 0.8,
-                          letterSpacing: 0.8,
-                          color: record.kind == CallKind.missed
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
-
-    if (onTap != null) {
-      row = GestureDetector(onTap: onTap, child: row);
-    }
-    if (menu != null) {
-      row = MetroContextMenu(menu: menu!, child: row);
-    }
-    return row;
   }
 }
 
-/// 按压缩放反馈组件。
-///
-/// 参考 metro_ui 的 Tile 按压逻辑：按下立即反馈（PanDown 比 TapDown 更即时），
-/// 松手弹性回弹。去掉了 Tile 的 3D 旋转部分，仅保留按压缩放。
-///
-/// ⚠️ 为什么用 GestureDetector 而不是 Listener：
-/// 长按弹出上下文菜单时，外层 MetroContextMenu 的 LongPress 会在手势竞技场中
-/// 获胜，本组件的 Pan/Tap 手势随之失败 → 触发 onPanCancel / onTapCancel →
-/// 立即归位。而 Listener 不参与手势竞技场：菜单弹出后手指未抬起，
-/// onPointerUp 不会触发、事件流也没被取消（onPointerCancel 不触发），
-/// 组件会一直停在按下状态。
-class _PressScale extends StatefulWidget {
-  final Widget child;
+class _CallBackButton extends StatefulWidget {
+  const _CallBackButton({required this.light, this.onTap});
 
-  const _PressScale({required this.child});
+  final bool light;
+  final VoidCallback? onTap;
 
   @override
-  State<_PressScale> createState() => _PressScaleState();
+  State<_CallBackButton> createState() => _CallBackButtonState();
 }
 
-class _PressScaleState extends State<_PressScale>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  bool _isTouch = false;
+class _CallBackButtonState extends State<_CallBackButton> {
+  bool _down = false;
 
-  /// 按下缩小的目标比例
-  static const double _pressedScale = 0.95;
-
-  /// 按下时的目标不透明度（1.0 → 0.5，配合缩放做按压反馈）
-  static const double _pressedOpacity = 0.5;
-
-  /// 按下缩小的时长（快速反馈）
-  static const Duration _pressDuration = Duration(milliseconds: 100);
-
-  /// 松手回弹的时长
-  static const Duration _releaseDuration = Duration(milliseconds: 400);
-
-  /// 按下缩小的曲线
-  static const Curve _pressCurve = Curves.easeOutCubic;
-
-  /// 松手回弹的曲线（弹性）
-  static const Curve _releaseCurve = Curves.elasticOut;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this);
-  }
-
-  /// 按下即缩小（即时反馈，同 Tile 的 PanDown 立即触发）
-  void _handlePanDown(DragDownDetails details) {
-    _isTouch = true;
-    _controller.animateTo(1.0, duration: _pressDuration, curve: _pressCurve);
-  }
-
-  /// 手指滑出组件区域：立即回弹（同 Tile 的 PanUpdate 越界逻辑）
-  void _handlePanUpdate(DragUpdateDetails details) {
-    if (!_isTouch) return;
-    final RenderBox box = context.findRenderObject()! as RenderBox;
-    if (!box.attached || box.size.isEmpty) return;
-    final Offset local = box.globalToLocal(details.globalPosition);
-    final bool inside = local.dx >= 0 &&
-        local.dx <= box.size.width &&
-        local.dy >= 0 &&
-        local.dy <= box.size.height;
-    if (!inside) _handleRelease();
-  }
-
-  /// 归位：松手 / 手势被抢占（长按菜单、滑动列表）/ 快速点击都走这里
-  void _handleRelease() {
-    _isTouch = false;
-    _controller.animateTo(
-      0.0,
-      duration: _releaseDuration,
-      curve: _releaseCurve,
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void _setDown(bool value) {
+    if (_down != value) setState(() => _down = value);
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      // 只响应文字区域本身，避免挡住下方圆形按钮的点击
-      behavior: HitTestBehavior.deferToChild,
-      // Pan 手势：按下立即反馈；长按时被外层 LongPress 抢占 → onPanCancel 归位
-      onPanDown: _handlePanDown,
-      onPanUpdate: _handlePanUpdate,
-      onPanEnd: (_) => _handleRelease(),
-      onPanCancel: _handleRelease,
-      // Tap 手势：保证快速点击（无移动、Pan 未获胜）也能归位
-      onTap: _handleRelease,
-      onTapCancel: _handleRelease,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final double t = _controller.value;
-          // 1. Z 轴缩放：1.0 → 0.95
-          final double scale = 1.0 - ((1.0 - _pressedScale) * t);
-          // 2. 透明度：1.0 → 0.5
-          final double opacity = 1.0 - ((1.0 - _pressedOpacity) * t);
-          return Opacity(
-            opacity: opacity,
-            child: Transform.scale(
-              scale: scale,
-              alignment: Alignment.center,
-              child: child,
-            ),
-          );
-        },
-        child: widget.child,
+    final callback = widget.onTap;
+    final brightness = widget.light ? 'light' : 'dark';
+    final state = _down && callback != null ? 'down' : 'rest';
+    return Semantics(
+      button: true,
+      label: 'call back',
+      enabled: callback != null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: callback,
+        onTapDown: callback == null ? null : (_) => _setDown(true),
+        onTapUp: callback == null ? null : (_) => _setDown(false),
+        onTapCancel: callback == null ? null : () => _setDown(false),
+        child: Padding(
+          // CallButtonStyle_ImageButtonPadding. The PNG fills only its own box.
+          padding: const EdgeInsetsDirectional.only(
+            top: 5 * uixScale,
+            end: 18 * uixScale,
+          ),
+          child: Image.asset(
+            '$wp8PhoneAssets/callback_${brightness}_$state.png',
+            width: 43 * uixScale,
+            height: 43 * uixScale,
+            excludeFromSemantics: true,
+          ),
+        ),
       ),
     );
   }
