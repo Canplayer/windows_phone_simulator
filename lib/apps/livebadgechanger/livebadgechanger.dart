@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/button.dart';
-import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/widgets/page_header.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -137,9 +137,9 @@ class _LiveBadgeChangerDemoAppState extends State<LiveBadgeChangerDemoApp> {
   Widget build(BuildContext context) {
     return MetroPageScaffold(
       //backgroundColor: Colors.blueGrey,
-      stackPanel: const StackPanel(
-        top: Text('FLUMETRO'),
-        bottom: Text('badge demo'),
+      header: const MetroPageHeader(
+        title: Text('FLUMETRO'),
+        singlePivotHeader: Text('badge demo'),
       ),
       body: Builder(
         // 使用 Builder 来获取正确的 context

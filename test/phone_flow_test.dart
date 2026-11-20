@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:metro_ui/app.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/widgets/metro_circle_button.dart';
+import 'package:metro_ui/widgets/page_header.dart';
 import 'package:metro_ui/widgets/phone_keypad.dart';
+import 'package:metro_ui/widgets/pivot.dart';
 import 'package:metro_ui/widgets/pushable_double_line_list_item.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:metro_ui/widgets/toggle_switch.dart';
@@ -98,11 +100,18 @@ void main() {
     expect(callbackBox.width, closeTo(43 * scale, .00001));
     expect(callbackBox.height, closeTo(43 * scale, .00001));
     expect(tester.getSize(row).height, closeTo(82 * scale, .00001));
-    final header = find.byType(UixTightText).at(0);
-    final pivotHeader = find.byType(UixTightText).at(1);
+    final header = find.descendant(
+      of: find.byType(MetroPageHeader),
+      matching: find.byType(UixTightText),
+    );
+    final pivotHeader = find.byType(PivotHeader);
     final headerBox = tester.getRect(header);
     final pivotBox = tester.getRect(pivotHeader);
     expect(pivotBox.top - headerBox.bottom, closeTo(22 * scale, .00001));
+    expect(
+      tester.getTopLeft(row).dy - pivotBox.bottom,
+      closeTo(28 * scale, .00001),
+    );
     final lines = find.descendant(of: row, matching: find.byType(UixTightText));
     final line1 = tester.getRect(lines.at(0));
     final line2 = tester.getRect(lines.at(1));

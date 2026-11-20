@@ -1,10 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:metro_ui/metro_theme.dart';
 import 'package:metro_ui/page_scaffold.dart';
+import 'package:metro_ui/widgets/page_header.dart';
 import 'package:metro_ui/uix_metrics.dart';
 import 'package:metro_ui/uix_typography.dart';
 import 'package:metro_ui/widgets/message_box.dart';
-import 'package:metro_ui/widgets/metro_list_picker.dart';
+import 'package:metro_ui/widgets/list_picker.dart';
 import 'package:metro_ui/widgets/toggle_switch.dart';
 import 'package:metro_ui/widgets/uix_edit_box.dart';
 import 'package:metro_ui/widgets/uix_popup.dart';
@@ -134,153 +135,123 @@ class _CallSettingsPageState extends State<CallSettingsPage> {
     return PhoneBackKey(
       child: MetroPageScaffold(
         useMaterialSurface: false,
+        // PhoneSettings!CallSettingsDevice.CallSettings derives from SinglePivotPage.
+        header: MetroPageHeader(
+          title: const Text('SETTINGS'),
+          singlePivotHeader: const Text('phone'),
+          titleStyle: TextStyle(color: palette.textHigh),
+          singlePivotHeaderStyle: TextStyle(color: palette.textHigh),
+        ),
         body: SafeArea(
-          minimum: const EdgeInsets.fromLTRB(
-            24 * uixScale,
-            56 * uixScale,
-            24 * uixScale,
-            0,
-          ),
+          top: false,
           bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              UixTightText.fromText(
-                Text(
-                  'SETTINGS',
-                  style: TextStyle(
-                    fontSize: uixFontSize(17),
-                    fontWeight: UixFontWeight.semiBold,
-                    color: palette.textHigh,
+          minimum: const EdgeInsets.symmetric(horizontal: 24 * uixScale),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_model.phoneNumber.isNotEmpty) ...[
+                  _caption('My phone number', palette),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: 12 * uixScale,
+                      bottom: 56 * uixScale,
+                    ),
+                    child: UixTightText.fromText(
+                      Text(
+                        _model.phoneNumber,
+                        style: TextStyle(
+                          fontSize: uixFontSize(24),
+                          fontWeight: UixFontWeight.semiLight,
+                          color: palette.textHigh,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              UixTightText.fromText(
-                Text(
-                  'phone',
-                  style: TextStyle(
-                    fontSize: uixFontSize(54),
-                    fontWeight: UixFontWeight.semiLight,
-                    color: palette.textHigh,
+                ],
+                if (_model.voicemailNumber != null) ...[
+                  if (voicemailDefault == null)
+                    _caption('Voicemail number', palette)
+                  else
+                    ToggleSwitch(
+                      label: 'Use default voicemail number',
+                      value: _model.useDefaultVoicemail,
+                      onChanged: (value) =>
+                          setState(() => _model.useDefaultVoicemail = value),
+                    ),
+                  if (voicemailDefault == null || !_model.useDefaultVoicemail)
+                    UixEditBox(
+                      controller: _voicemail,
+                      focusNode: _voicemailFocus,
+                      backgroundImage: _editBoxBackground(palette),
+                      placeholder: voicemailDefault == null
+                          ? 'voicemail number'
+                          : 'new voicemail number',
+                      keyboardType: TextInputType.phone,
+                      maxLength: _maximumNumberLength,
+                      onChanged: (value) => _model.voicemailNumber = value,
+                    ),
+                  _sectionSpacer,
+                ],
+                if (callerId != null) ...[
+                  _caption('Show my caller ID to', palette),
+                  ListPicker<CallerIdSetting>(
+                    items: CallerIdSetting.values,
+                    value: callerId,
+                    itemLabel: (value) => value.label,
+                    onChanged: (value) =>
+                        setState(() => _model.callerId = value),
                   ),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_model.phoneNumber.isNotEmpty) ...[
-                        _caption('My phone number', palette),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: 12 * uixScale,
-                            bottom: 56 * uixScale,
-                          ),
-                          child: UixTightText.fromText(
-                            Text(
-                              _model.phoneNumber,
-                              style: TextStyle(
-                                fontSize: uixFontSize(24),
-                                fontWeight: UixFontWeight.semiLight,
-                                color: palette.textHigh,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (_model.voicemailNumber != null) ...[
-                        if (voicemailDefault == null)
-                          _caption('Voicemail number', palette)
-                        else
-                          ToggleSwitch(
-                            label: 'Use default voicemail number',
-                            value: _model.useDefaultVoicemail,
-                            onChanged: (value) => setState(
-                              () => _model.useDefaultVoicemail = value,
-                            ),
-                          ),
-                        if (voicemailDefault == null ||
-                            !_model.useDefaultVoicemail)
-                          UixEditBox(
-                            controller: _voicemail,
-                            focusNode: _voicemailFocus,
-                            backgroundImage: _editBoxBackground(palette),
-                            placeholder: voicemailDefault == null
-                                ? 'voicemail number'
-                                : 'new voicemail number',
-                            keyboardType: TextInputType.phone,
-                            maxLength: _maximumNumberLength,
-                            onChanged: (value) =>
-                                _model.voicemailNumber = value,
-                          ),
-                        _sectionSpacer,
-                      ],
-                      if (callerId != null) ...[
-                        _caption('Show my caller ID to', palette),
-                        ListPicker<CallerIdSetting>(
-                          items: CallerIdSetting.values,
-                          value: callerId,
-                          itemLabel: (value) => value.label,
-                          onChanged: (value) =>
-                              setState(() => _model.callerId = value),
-                        ),
-                        _sectionSpacer,
-                      ],
-                      if (forwardingNumber != null) ...[
-                        _caption('Call forwarding', palette),
-                        Transform.translate(
-                          offset: const Offset(0, -15 * uixScale),
-                          child: ToggleSwitch(
-                            value: _model.callForwardingEnabled,
-                            onChanged: (value) {
-                              if (value && forwardingNumber.isEmpty) {
-                                _editForwarding();
-                              } else {
-                                setState(
-                                  () => _model.callForwardingEnabled = value,
-                                );
-                              }
-                            },
-                          ),
-                        ),
-                        if (_model.callForwardingEnabled)
-                          Align(
-                            alignment: AlignmentDirectional.centerStart,
-                            child: SizedBox(
-                              width: 136 * uixScale,
-                              child: MetroTextCommand(
-                                label: forwardingNumber,
-                                onPressed: _editForwarding,
-                              ),
-                            ),
-                          ),
-                        _sectionSpacer,
-                      ],
-                      if (assisted != null) ...[
-                        ToggleSwitch(
-                          value: assisted,
-                          label: 'International assist',
-                          description: 'Turning on this feature will help automatically correct some common mistakes while dialing internationally or dialing while abroad.',
-                          onChanged: (value) => setState(
-                            () => _model.internationalAssist = value,
-                          ),
-                        ),
-                        _sectionSpacer,
-                      ],
-                      ..._simSecurity(palette),
-                      if (longTones != null)
-                        ToggleSwitch(
-                          value: longTones,
-                          label: 'Long tones',
-                          onChanged: (value) =>
-                              setState(() => _model.longTones = value),
-                        ),
-                    ],
+                  _sectionSpacer,
+                ],
+                if (forwardingNumber != null) ...[
+                  _caption('Call forwarding', palette),
+                  Transform.translate(
+                    offset: const Offset(0, -15 * uixScale),
+                    child: ToggleSwitch(
+                      value: _model.callForwardingEnabled,
+                      onChanged: (value) {
+                        if (value && forwardingNumber.isEmpty) {
+                          _editForwarding();
+                        } else {
+                          setState(() => _model.callForwardingEnabled = value);
+                        }
+                      },
+                    ),
                   ),
-                ),
-              ),
-            ],
+                  if (_model.callForwardingEnabled)
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: SizedBox(
+                        width: 136 * uixScale,
+                        child: MetroTextCommand(
+                          label: forwardingNumber,
+                          onPressed: _editForwarding,
+                        ),
+                      ),
+                    ),
+                  _sectionSpacer,
+                ],
+                if (assisted != null) ...[
+                  ToggleSwitch(
+                    value: assisted,
+                    label: 'International assist',
+                    description: 'Turning on this feature will help automatically correct some common mistakes while dialing internationally or dialing while abroad.',
+                    onChanged: (value) =>
+                        setState(() => _model.internationalAssist = value),
+                  ),
+                  _sectionSpacer,
+                ],
+                ..._simSecurity(palette),
+                if (longTones != null)
+                  ToggleSwitch(
+                    value: longTones,
+                    label: 'Long tones',
+                    onChanged: (value) =>
+                        setState(() => _model.longTones = value),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

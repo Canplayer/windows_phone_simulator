@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/page_scaffold.dart';
-import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/uix_metrics.dart';
+import 'package:metro_ui/widgets/page_header.dart';
 import 'package:metro_ui/widgets/pivot.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
@@ -143,10 +144,9 @@ class _MessagingAppState extends State<MessagingApp> {
   Widget build(BuildContext context) {
     return MetroPageScaffold(
       //backgroundColor: Colors.blueGrey,
-      stackPanel: const StackPanel(
-        top: Text('CHINA UNICOM'),
-        //通话记录
-        //bottom: Text('history'),
+      header: const MetroPageHeader(
+        title: Text('CHINA UNICOM'),
+        titleGap: 24 * uixScale,
       ),
       applicationBar:
           MetroApplicationBar(backgroundColor: Colors.grey[900], buttons: [

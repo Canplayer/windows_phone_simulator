@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:metro_ui/page_scaffold.dart';
-import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/widgets/page_header.dart';
 import 'package:metro_ui/widgets/pivot.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
-/// SwipePages 使用示例。
+/// Pivot 使用示例。
 ///
-/// [SwipePages] = 标题指示器（[SwipePageIndicator]）+ [SwipePageView] 的组合组件，
-/// 二者自动同步：
+/// [Pivot] 组合标题指示器（[PivotHeader]）和页面内容。
+/// 标题与内容自动同步：
 /// - 顶部标题条随拖动进度平移，松手换页时新标题从反方向减速滑入；
 /// - 无限滚动：5 个页面循环，index 可为任意整数；
 /// - [onPageChanged] 在松手触发换页的瞬间回调 (旧页, 新页)；
@@ -91,8 +91,9 @@ class _SwipePageDemoAppState extends State<SwipePageDemoApp> {
   @override
   Widget build(BuildContext context) {
     return MetroPageScaffold(
-      stackPanel: StackPanel(
-        top: Row(
+      header: MetroPageHeader(
+        titleGap: 0,
+        title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Swipe Page Demo'),

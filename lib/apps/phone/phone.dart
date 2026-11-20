@@ -7,13 +7,14 @@ import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:metro_ui/widgets/message_box.dart';
+import 'package:metro_ui/widgets/page_header.dart';
+import 'package:metro_ui/widgets/pivot.dart';
 import 'package:metro_ui/uix_metrics.dart';
 import 'package:metro_ui/uix_typography.dart';
 import 'package:metro_ui/widgets/pushable_double_line_list_item.dart';
 import 'package:metro_ui/widgets/search_bar.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:metro_ui/widgets/uix_page_slide.dart';
-import 'package:metro_ui/widgets/uix_tight_text.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -288,6 +289,56 @@ class _PhoneAppState extends State<PhoneApp> {
     );
     final showSearchContacts = _searching && filter.isNotEmpty;
     final onSearchContacts = widget.onSearchContacts;
+    final historyList = SingleChildScrollView(
+      padding: EdgeInsets.only(top: _searching ? 4 * uixScale : 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (entries.isEmpty)
+            Text(
+              _searching ? 'No results' : 'To make a call, tap an icon below.',
+            ),
+          for (final entry in entries)
+            CallHistoryTile(
+              key: ValueKey(('phone-history', entry.key)),
+              record: entry.value,
+              highlightQuery: _searching ? _searchText.text : null,
+              onCallBack: entry.value.callbackNumber == null
+                  ? null
+                  : () => _callBack(entry.value),
+              onTap: widget.onOpenHistoryItem == null
+                  ? null
+                  : () => widget.onOpenHistoryItem!(entry.value),
+              menu: MetroContextMenuItem(
+                onTap: () => setState(() => _history.remove(entry.key)),
+                child: const Text('delete item'),
+              ),
+            ),
+          if (showSearchContacts)
+            Padding(
+              padding: const EdgeInsets.only(top: 26 * uixScale),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onSearchContacts == null
+                    ? null
+                    : () => onSearchContacts(_searchText.text),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12 * uixScale),
+                  child: Text(
+                    'search contacts',
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: uixFontSize(25),
+                      fontWeight: UixFontWeight.normal,
+                      color: palette.textHigh,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
     return PhoneBackKey(
       child: MetroPageScaffold(
         key: _scaffoldKey,
@@ -367,85 +418,28 @@ class _PhoneAppState extends State<PhoneApp> {
                         onChanged: (_) => setState(() {}),
                       ),
                     )
-                  else ...[
-                    UixTightText(
-                      widget.branding,
-                      style: TextStyle(
-                        fontSize: uixFontSize(17),
-                        fontWeight: UixFontWeight.semiBold,
-                        color: palette.textHigh,
-                      ),
+                  else
+                    MetroPageHeader(
+                      title: Text(widget.branding),
+                      titleStyle: TextStyle(color: palette.textHigh),
+                      minimumPadding: EdgeInsets.zero,
+                      // PhoneRes!MainPagePhone_titleText_Margins.
+                      titleGap: 22 * uixScale,
                     ),
-                    const SizedBox(height: 22 * uixScale),
-                    UixTightText(
-                      'history',
-                      style: TextStyle(
-                        fontSize: uixFontSize(54),
-                        fontWeight: UixFontWeight.semiLight,
-                        color: palette.textHigh,
-                      ),
-                    ),
-                  ],
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(top: 4 * uixScale),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (entries.isEmpty)
-                            Text(
-                              _searching
-                                  ? 'No results'
-                                  : 'To make a call, tap an icon below.',
-                            ),
-                          for (final entry in entries)
-                            CallHistoryTile(
-                              key: ValueKey(('phone-history', entry.key)),
-                              record: entry.value,
-                              highlightQuery: _searching
-                                  ? _searchText.text
-                                  : null,
-                              onCallBack: entry.value.callbackNumber == null
-                                  ? null
-                                  : () => _callBack(entry.value),
-                              onTap: widget.onOpenHistoryItem == null
-                                  ? null
-                                  : () =>
-                                        widget.onOpenHistoryItem!(entry.value),
-                              menu: MetroContextMenuItem(
-                                onTap: () =>
-                                    setState(() => _history.remove(entry.key)),
-                                child: const Text('delete item'),
-                              ),
-                            ),
-                          if (showSearchContacts)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: 26 * uixScale,
-                              ),
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: onSearchContacts == null
-                                    ? null
-                                    : () => onSearchContacts(_searchText.text),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12 * uixScale,
-                                  ),
-                                  child: Text(
-                                    'search contacts',
-                                    maxLines: 2,
-                                    style: TextStyle(
-                                      fontSize: uixFontSize(25),
-                                      fontWeight: UixFontWeight.normal,
-                                      color: palette.textHigh,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                    child: Pivot(
+                      padding: EdgeInsets.zero,
+                      interactive: false,
+                      showHeader: !_searching,
+                      items: [
+                        PivotItem(
+                          title: Text(
+                            'history',
+                            style: TextStyle(color: palette.textHigh),
+                          ),
+                          page: historyList,
+                        ),
+                      ],
                     ),
                   ),
                 ],

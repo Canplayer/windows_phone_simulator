@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/page_scaffold.dart';
-import 'package:metro_ui/widgets/stack_panel.dart';
+import 'package:metro_ui/widgets/page_header.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
 
@@ -199,9 +199,9 @@ class _CustomTileDemoAppState extends State<CustomTileDemoApp> {
   Widget build(BuildContext context) {
     return MetroPageScaffold(
       //backgroundColor: Colors.blueGrey,
-      stackPanel: const StackPanel(
-        top: Text('FLUMETRO'),
-        bottom: Text('about'),
+      header: const MetroPageHeader(
+        title: Text('FLUMETRO'),
+        singlePivotHeader: Text('about'),
       ),
       body: Builder(
         // 使用 Builder 来获取正确的 context
