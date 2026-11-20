@@ -84,7 +84,7 @@ class _SplashscreenState extends State<Splashscreen>
       scaffoldKey: _scaffoldKey,
       MetroPageRoute(
         builder: (context) {
-          return const LauncherPage(title: 'Flutter Demo Home Page');
+          return const LauncherPage();
         },
       ),
     );
