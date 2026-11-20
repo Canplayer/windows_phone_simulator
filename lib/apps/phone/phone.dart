@@ -2,9 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:metro_ui/application_bar.dart';
 import 'package:metro_ui/metro_page_push.dart';
-import 'package:metro_ui/metro_theme.dart';
 import 'package:metro_ui/page.dart';
 import 'package:metro_ui/page_scaffold.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 import 'package:metro_ui/widgets/context_menu.dart';
 import 'package:metro_ui/widgets/message_box.dart';
 import 'package:metro_ui/widgets/page_header.dart';
@@ -275,12 +275,7 @@ class _PhoneAppState extends State<PhoneApp> {
   }
 
   @override
-  Widget build(BuildContext context) => MetroTheme(
-    data: wp8PhoneTheme,
-    child: Builder(builder: _buildPage),
-  );
-
-  Widget _buildPage(BuildContext context) {
+  Widget build(BuildContext context) {
     final palette = Wp8PhonePalette.of(context);
     final filter = _searchText.text.toLowerCase();
     final entries = _history.entries.where(
@@ -295,8 +290,9 @@ class _PhoneAppState extends State<PhoneApp> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (entries.isEmpty)
-            Text(
+            UixText(
               _searching ? 'No results' : 'To make a call, tap an icon below.',
+              boundsType: UixTextBounds.tight,
             ),
           for (final entry in entries)
             CallHistoryTile(
@@ -324,8 +320,9 @@ class _PhoneAppState extends State<PhoneApp> {
                     : () => onSearchContacts(_searchText.text),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12 * uixScale),
-                  child: Text(
+                  child: UixText(
                     'search contacts',
+                    boundsType: const UixTextBounds(alignToBaseline: true),
                     maxLines: 2,
                     style: TextStyle(
                       fontSize: uixFontSize(25),
@@ -347,7 +344,6 @@ class _PhoneAppState extends State<PhoneApp> {
         applicationBar: _searching
             ? null
             : MetroApplicationBar(
-                theme: wp8PhoneTheme,
                 buttons: [
                   _historyCommand('voicemail', widget.onVoicemail),
                   _historyCommand('keypad', _openDialer),

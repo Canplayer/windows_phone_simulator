@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:metro_ui/application_bar.dart';
-import 'package:metro_ui/metro_theme.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/uix_metrics.dart';
 import 'package:metro_ui/uix_typography.dart';
@@ -11,11 +10,8 @@ import 'package:metro_ui/widgets/uix_page_slide.dart';
 
 import 'wp8_phone_palette.dart';
 
-import 'package:metro_ui/widgets/uix_tight_text.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 
-const wp8PhoneTheme = MetroThemeData.fromPreset(
-  version: MetroDesignVersion.wp8,
-);
 const wp8PhoneAssets = 'images/wp8_phone';
 
 class KeypadPage extends StatefulWidget {
@@ -101,13 +97,6 @@ class _KeypadPageState extends State<KeypadPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MetroTheme(
-      data: wp8PhoneTheme,
-      child: Builder(builder: _buildPage),
-    );
-  }
-
-  Widget _buildPage(BuildContext context) {
     final palette = Wp8PhonePalette.of(context);
     final canHoldOne = _number.isEmpty || _number == '1';
     final saveContact = widget.onSaveContact;
@@ -124,7 +113,6 @@ class _KeypadPageState extends State<KeypadPage> with WidgetsBindingObserver {
           await _slide.currentState?.hide();
         },
         applicationBar: MetroApplicationBar(
-          theme: wp8PhoneTheme,
           showMenuIndicator: false,
           customContent: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24 * uixScale),
@@ -164,7 +152,7 @@ class _KeypadPageState extends State<KeypadPage> with WidgetsBindingObserver {
                             start: 24 * uixScale,
                             end: 24 * uixScale,
                             top: 24 * uixScale,
-                            child: UixTightText.fromText(
+                            child: UixText.fromText(
                               Text(
                                 widget.branding,
                                 maxLines: 1,
@@ -175,6 +163,7 @@ class _KeypadPageState extends State<KeypadPage> with WidgetsBindingObserver {
                                   color: palette.textHigh,
                                 ),
                               ),
+                              boundsType: UixTextBounds.tight,
                             ),
                           ),
                           PositionedDirectional(
@@ -187,7 +176,7 @@ class _KeypadPageState extends State<KeypadPage> with WidgetsBindingObserver {
                                 constraints: const BoxConstraints(
                                   maxWidth: 363 * uixScale,
                                 ),
-                                child: UixTightText.fromText(
+                                child: UixText.fromText(
                                   Text(
                                     widget.formatNumber?.call(_number) ??
                                         _number,
@@ -201,6 +190,7 @@ class _KeypadPageState extends State<KeypadPage> with WidgetsBindingObserver {
                                       color: palette.textHigh,
                                     ),
                                   ),
+                                  boundsType: UixTextBounds.tight,
                                 ),
                               ),
                             ),

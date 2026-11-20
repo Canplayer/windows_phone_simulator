@@ -8,7 +8,7 @@ import 'package:metro_ui/widgets/metro_circle_button.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/start_menu.dart';
-import 'package:metro_ui/widgets/uix_tight_text.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 
 class LauncherPage extends StatefulWidget {
   const LauncherPage({super.key, required this.title});
@@ -350,7 +350,7 @@ class _LauncherPageState extends State<LauncherPage>
                                                     const SizedBox(width: 16),
                                                     // 应用名称
                                                     Expanded(
-                                                      child: UixTightText.fromText(
+                                                      child: UixText.fromText(
                                                         Text(
                                                           app.name,
                                                           maxLines: 1,
@@ -360,6 +360,7 @@ class _LauncherPageState extends State<LauncherPage>
                                                               color: Colors.white,
                                                               fontSize: 24),
                                                         ),
+                                                        boundsType: UixTextBounds.tight,
                                                       ),
                                                     ),
                                                   ],

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:windows_phone_simulator/app_registry.dart';
 import 'package:windows_phone_simulator/apps/phone/phone.dart';
+import 'package:windows_phone_simulator/apps/theme_demo/theme_demo.dart';
 import 'package:windows_phone_simulator/launcher.dart';
 import 'package:windows_phone_simulator/main.dart' as app;
 import 'package:windows_phone_simulator/splashscreen_page.dart';
@@ -17,6 +18,10 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(find.byType(LauncherPage), findsOneWidget);
+    expect(
+      AppRegistry().apps.singleWhere((app) => app.name == 'Theme demo').page,
+      isA<ThemeDemoPage>(),
+    );
     await tester.tap(find.byType(PhoneLiveTile));
     await tester.pumpAndSettle();
     expect(find.byType(PhoneApp), findsOneWidget);

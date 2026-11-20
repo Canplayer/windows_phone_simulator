@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:metro_ui/app.dart';
-import 'package:metro_ui/metro_scroll_behavior.dart';
 import 'package:metro_ui/metro_theme_extensions.dart';
 import 'package:windows_phone_simulator/apps/about/about.dart';
 import 'package:windows_phone_simulator/apps/livebadgechanger/livebadgechanger.dart';
@@ -9,6 +8,7 @@ import 'package:windows_phone_simulator/apps/messaging/messaging.dart';
 import 'package:windows_phone_simulator/apps/panorama_page.dart';
 import 'package:windows_phone_simulator/apps/swipepagedemo/swipepagedemo.dart';
 import 'package:windows_phone_simulator/apps/phone/phone.dart';
+import 'package:windows_phone_simulator/apps/theme_demo/theme_demo.dart';
 import 'package:windows_phone_simulator/demo_page.dart';
 import 'package:windows_phone_simulator/splashscreen_page.dart';
 
@@ -19,6 +19,7 @@ void main() {
   DemoPage.register();
   AboutPage.register();
   PhoneApp.register();
+  ThemeDemoPage.register();
   CustomTileDemoApp.register();
   LiveBadgeChangerDemoApp.register();
   SwipePageDemoApp.register();

@@ -9,7 +9,7 @@ import 'package:metro_ui/metro_page_push.dart';
 import 'package:metro_ui/page.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:windows_phone_simulator/global_perspective.dart';
-import 'package:metro_ui/widgets/uix_tight_text.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 
 //磁贴大小枚举
 enum TileSize {
@@ -1342,6 +1342,10 @@ class _LiveTileState extends State<LiveTile>
 
   @override
   Widget build(BuildContext context) {
+    final name = widget.name;
+    final title = name is Text
+        ? UixText.fromText(name, boundsType: UixTextBounds.tight)
+        : name;
     // 🌟 将变量重命名为标准画布尺寸，语义更清晰
     double standardWidth;
     double standardHeight;
@@ -1413,7 +1417,7 @@ class _LiveTileState extends State<LiveTile>
 
                         // 🌟 标题保持原样，置于 FittedBox 外部
                         // 这样它不会受到等比缩放的影响，字体大小永远是 16，左边距永远是 10
-                        if (widget.name != null &&
+                        if (title != null &&
                             widget.size != LiveTileSize.small)
                           Positioned(
                             left: 10,
@@ -1423,7 +1427,7 @@ class _LiveTileState extends State<LiveTile>
                                 color: Colors.white,
                                 fontSize: 16,
                               ),
-                              child: widget.name!,
+                              child: title,
                             ),
                           ),
                       ],
@@ -1528,7 +1532,7 @@ class _MetroAppTileState extends State<MetroAppTile>
                     alignment: Alignment.center,
                     transform: Matrix4.identity()
                       ..rotateX(_rotationAnimation.value * math.pi),
-                    child: UixTightText.fromText(
+                    child: UixText.fromText(
                       Text(
                         '$_displayCount',
                         style: const TextStyle(
@@ -1537,6 +1541,7 @@ class _MetroAppTileState extends State<MetroAppTile>
                           fontWeight: FontWeight.w300,
                         ),
                       ),
+                      boundsType: UixTextBounds.tight,
                     ),
                   );
                 },

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:metro_ui/animations.dart';
-import 'package:metro_ui/metro_theme.dart';
 import 'package:metro_ui/uix_metrics.dart';
 import 'package:metro_ui/uix_typography.dart';
 import 'package:metro_ui/widgets/phone_keypad.dart';
@@ -10,7 +9,7 @@ import 'package:metro_ui/widgets/phone_keypad.dart';
 import 'keypad_page.dart';
 import 'wp8_phone_palette.dart';
 
-import 'package:metro_ui/widgets/uix_tight_text.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 
 /// Expanded PhoneShellUI cprog layer for one outgoing call.
 ///
@@ -30,11 +29,9 @@ class PhoneCallProgress extends StatefulWidget {
   final VoidCallback? onAddCall;
   final ValueChanged<String>? onTone;
 
-  Future<void> show(BuildContext context) => Navigator.of(context).push<void>(
-    _CallProgressRoute(
-      pageBuilder: (_, _, _) => MetroTheme(data: wp8PhoneTheme, child: this),
-    ),
-  );
+  Future<void> show(BuildContext context) =>
+      Navigator.of(context)
+          .push<void>(_CallProgressRoute(pageBuilder: (_, _, _) => this));
 
   @override
   State<PhoneCallProgress> createState() => _PhoneCallProgressState();
@@ -106,7 +103,7 @@ class _PhoneCallProgressState extends State<PhoneCallProgress> {
               top: 40 * uixScale,
               end: 12 * uixScale,
             ),
-            child: UixTightText.fromText(
+            child: UixText.fromText(
               Text(
                 widget.branding,
                 textAlign: TextAlign.end,
@@ -116,6 +113,7 @@ class _PhoneCallProgressState extends State<PhoneCallProgress> {
                   color: palette.textMid,
                 ),
               ),
+              boundsType: UixTextBounds.tight,
             ),
           ),
           Padding(
@@ -123,7 +121,7 @@ class _PhoneCallProgressState extends State<PhoneCallProgress> {
               top: 195 * uixScale,
               bottom: 22 * uixScale,
             ),
-            child: UixTightText.fromText(
+            child: UixText.fromText(
               Text(
                 'DIALING...',
                 style: TextStyle(
@@ -132,9 +130,10 @@ class _PhoneCallProgressState extends State<PhoneCallProgress> {
                   color: palette.accent,
                 ),
               ),
+              boundsType: UixTextBounds.tight,
             ),
           ),
-          UixTightText.fromText(
+          UixText.fromText(
             Text(
               widget.displayName ?? widget.number,
               maxLines: 1,
@@ -147,11 +146,12 @@ class _PhoneCallProgressState extends State<PhoneCallProgress> {
                 color: palette.textHigh,
               ),
             ),
+            boundsType: UixTextBounds.tight,
           ),
           if (widget.displayName != null || _tones.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 11 * uixScale),
-              child: UixTightText.fromText(
+              child: UixText.fromText(
                 Text(
                   _tones.isEmpty ? widget.number : _tones,
                   style: TextStyle(
@@ -160,6 +160,7 @@ class _PhoneCallProgressState extends State<PhoneCallProgress> {
                     color: palette.textMid,
                   ),
                 ),
+                boundsType: UixTextBounds.tight,
               ),
             ),
         ],
@@ -395,17 +396,20 @@ class _ShellButtonState extends State<_ShellButton> {
                     excludeFromSemantics: true,
                   ),
                 if (widget.showLabel)
-                  Text(
-                    widget.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: uixFontSize(icon == null ? 17 : 16),
-                      fontWeight: icon == null
-                          ? UixFontWeight.semiBold
-                          : UixFontWeight.normal,
-                      color: foreground,
-                      decoration: TextDecoration.none,
+                  UixText.fromText(
+                    Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: uixFontSize(icon == null ? 17 : 16),
+                        fontWeight: icon == null
+                            ? UixFontWeight.semiBold
+                            : UixFontWeight.normal,
+                        color: foreground,
+                        decoration: TextDecoration.none,
+                      ),
                     ),
+                    boundsType: UixTextBounds.tight,
                   ),
               ],
             ),

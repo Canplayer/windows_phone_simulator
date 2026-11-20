@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metro_ui/app.dart';
 import 'package:metro_ui/application_bar.dart';
+import 'package:metro_ui/metro_theme_extensions.dart';
 import 'package:metro_ui/widgets/metro_circle_button.dart';
 import 'package:metro_ui/widgets/page_header.dart';
 import 'package:metro_ui/widgets/phone_keypad.dart';
@@ -14,25 +15,35 @@ import 'package:metro_ui/widgets/pushable_double_line_list_item.dart';
 import 'package:metro_ui/widgets/tile.dart';
 import 'package:metro_ui/widgets/toggle_switch.dart';
 import 'package:metro_ui/widgets/uix_page_slide.dart';
-import 'package:metro_ui/widgets/uix_tight_text.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 import 'package:windows_phone_simulator/apps/phone/call_progress.dart';
 import 'package:windows_phone_simulator/apps/phone/call_settings_page.dart';
 import 'package:windows_phone_simulator/apps/phone/keypad_page.dart';
 import 'package:windows_phone_simulator/apps/phone/phone.dart';
+import 'package:windows_phone_simulator/start_menu.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() => UixText.preloadFontMetrics('packages/metro_ui/Segoe WP'));
+
   const scale = .8;
 
   Future<void> start(
     WidgetTester tester, {
     Widget home = const PhoneApp(),
     MetroThemeMode themeMode = MetroThemeMode.dark,
+    MetroDesignVersion version = MetroDesignVersion.wp8,
     bool highContrast = false,
   }) async {
     await tester.binding.setSurfaceSize(const Size(480 * scale, 800 * scale));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      MetroApp(home: home, themeMode: themeMode, highContrast: highContrast),
+      MetroApp(
+        home: home,
+        version: version,
+        themeMode: themeMode,
+        highContrast: highContrast,
+      ),
     );
     await tester.pumpAndSettle();
   }
@@ -40,6 +51,28 @@ void main() {
   Finder command(String label) => find.byWidgetPredicate(
     (widget) => widget is MetroAppBarButton && widget.label == label,
   );
+
+  Finder uixLabel(String label) =>
+      find.ancestor(of: find.text(label), matching: find.byType(UixText));
+
+  testWidgets('Start tile applies native bounds to a Text title', (
+    tester,
+  ) async {
+    await start(
+      tester,
+      home: const Center(
+        child: LiveTile(
+          size: LiveTileSize.medium,
+          name: Text('Phone'),
+          children: [SizedBox.shrink()],
+        ),
+      ),
+    );
+    expect(
+      tester.widget<UixText>(uixLabel('Phone')).boundsType,
+      same(UixTextBounds.tight),
+    );
+  });
 
   testWidgets('history uses the four authored SVGs and a flat row', (
     tester,
@@ -102,17 +135,19 @@ void main() {
     expect(tester.getSize(row).height, closeTo(82 * scale, .00001));
     final header = find.descendant(
       of: find.byType(MetroPageHeader),
-      matching: find.byType(UixTightText),
+      matching: find.byType(UixText),
     );
     final pivotHeader = find.byType(PivotHeader);
     final headerBox = tester.getRect(header);
     final pivotBox = tester.getRect(pivotHeader);
     expect(pivotBox.top - headerBox.bottom, closeTo(22 * scale, .00001));
+    // UIX BoundsType=5 uses Segoe WP cap height plus the full descent.
+    expect(pivotBox.height, closeTo(54.7875, .001));
     expect(
       tester.getTopLeft(row).dy - pivotBox.bottom,
       closeTo(28 * scale, .00001),
     );
-    final lines = find.descendant(of: row, matching: find.byType(UixTightText));
+    final lines = find.descendant(of: row, matching: find.byType(UixText));
     final line1 = tester.getRect(lines.at(0));
     final line2 = tester.getRect(lines.at(1));
     expect(line2.top - line1.bottom, closeTo((4 + 8) * scale, .00001));
@@ -285,7 +320,11 @@ void main() {
       expect(find.byType(KeypadPage), findsOneWidget);
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(FilledButton), findsNothing);
-      expect(find.text('save'), findsOneWidget);
+      expect(
+        tester.widget<UixText>(uixLabel('save')).boundsType,
+        same(UixTextBounds.tight),
+      );
+      expect(uixLabel('1'), findsNothing);
       expect(find.bySemanticsLabel('backspace'), findsNothing);
 
       Finder key(String digit) => find.byKey(ValueKey('phone-key-$digit'));
@@ -357,7 +396,12 @@ void main() {
     await tester.tap(find.text('delete'));
     await tester.pumpAndSettle();
     expect(rows, findsNothing);
-    expect(find.text('To make a call, tap an icon below.'), findsOneWidget);
+    expect(
+      tester
+          .widget<UixText>(uixLabel('To make a call, tap an icon below.'))
+          .boundsType,
+      same(UixTextBounds.tight),
+    );
   });
 
   testWidgets('long press deletes only the selected history entry', (
@@ -395,7 +439,18 @@ void main() {
     await tester.enterText(find.byType(EditableText), '1390');
     await tester.pumpAndSettle();
     expect(find.byType(CallHistoryTile), findsNWidgets(2));
-    expect(find.text('search contacts'), findsOneWidget);
+    final searchContacts = tester
+        .widget<UixText>(uixLabel('search contacts'))
+        .boundsType;
+    expect(searchContacts.alignToBaseline, isTrue);
+    expect(searchContacts.alignToAscender, isFalse);
+    expect(searchContacts.trimLeftSideBearing, isFalse);
+    await tester.enterText(find.byType(EditableText), '123456789');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<UixText>(uixLabel('No results')).boundsType,
+      same(UixTextBounds.tight),
+    );
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(EditableText), findsNothing);
@@ -465,12 +520,21 @@ void main() {
         callForwardingNumber: '',
         internationalAssist: true,
       );
-      await start(tester, home: PhoneApp(settingsModel: model));
+      await start(
+        tester,
+        home: PhoneApp(settingsModel: model),
+        version: MetroDesignVersion.wp81,
+      );
       await tester.tapAt(const Offset(369, 599));
       await tester.pumpAndSettle();
       await tester.tap(find.text('settings'));
       await tester.pumpAndSettle();
-      expect(find.byType(CallSettingsPage), findsOneWidget);
+      expect(
+        MetroSystemThemeData.of(
+          tester.element(find.text('Show my caller ID to')),
+        ).version,
+        MetroDesignVersion.wp81,
+      );
       expect(find.text('SETTINGS'), findsOneWidget);
       expect(find.text('phone'), findsOneWidget);
       expect(find.text('Show my caller ID to'), findsOneWidget);
@@ -499,18 +563,39 @@ void main() {
   testWidgets(
     'a local dial shows the PhoneShellUI progress layer and in-call keypad',
     (tester) async {
-      await start(tester);
+      await start(tester, version: MetroDesignVersion.wp81);
+      expect(
+        MetroSystemThemeData.of(tester.element(find.text('history'))).version,
+        MetroDesignVersion.wp81,
+      );
       await tester.tap(command('keypad'));
       await tester.pumpAndSettle();
+      expect(
+        MetroSystemThemeData.of(tester.element(find.byType(PhoneKeypad)))
+            .version,
+        MetroDesignVersion.wp81,
+      );
+      expect(
+        MetroSystemThemeData.of(tester.element(find.text('call'))).version,
+        MetroDesignVersion.wp81,
+      );
       await tester.tap(find.byKey(const ValueKey('phone-key-2')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('call'));
       await tester.pumpAndSettle();
       final shell = find.byType(PhoneCallProgress);
       expect(shell, findsOneWidget);
-      expect(find.text('DIALING...'), findsOneWidget);
-      expect(find.text('END CALL'), findsOneWidget);
-      expect(find.text('SPEAKER'), findsOneWidget);
+      expect(
+        MetroSystemThemeData.of(tester.element(find.text('DIALING...')))
+            .version,
+        MetroDesignVersion.wp81,
+      );
+      for (final label in ['END CALL', 'SPEAKER']) {
+        expect(
+          tester.widget<UixText>(uixLabel(label)).boundsType,
+          same(UixTextBounds.tight),
+        );
+      }
       expect(find.byType(AlertDialog), findsNothing);
       final keypadToggle = find.descendant(
         of: shell,

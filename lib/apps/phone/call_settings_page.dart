@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:metro_ui/metro_theme.dart';
 import 'package:metro_ui/page_scaffold.dart';
 import 'package:metro_ui/widgets/page_header.dart';
 import 'package:metro_ui/uix_metrics.dart';
@@ -13,7 +12,7 @@ import 'package:metro_ui/widgets/uix_popup.dart';
 import 'keypad_page.dart';
 import 'wp8_phone_palette.dart';
 
-import 'package:metro_ui/widgets/uix_tight_text.dart';
+import 'package:metro_ui/widgets/uix_text.dart';
 
 enum CallerIdSetting {
   everyone('everyone'),
@@ -120,12 +119,7 @@ class _CallSettingsPageState extends State<CallSettingsPage> {
   }
 
   @override
-  Widget build(BuildContext context) => MetroTheme(
-    data: wp8PhoneTheme,
-    child: Builder(builder: _buildSettings),
-  );
-
-  Widget _buildSettings(BuildContext context) {
+  Widget build(BuildContext context) {
     final palette = Wp8PhonePalette.of(context);
     final callerId = _model.callerId;
     final forwardingNumber = _model.callForwardingNumber;
@@ -157,7 +151,7 @@ class _CallSettingsPageState extends State<CallSettingsPage> {
                       top: 12 * uixScale,
                       bottom: 56 * uixScale,
                     ),
-                    child: UixTightText.fromText(
+                    child: UixText.fromText(
                       Text(
                         _model.phoneNumber,
                         style: TextStyle(
@@ -166,6 +160,7 @@ class _CallSettingsPageState extends State<CallSettingsPage> {
                           color: palette.textHigh,
                         ),
                       ),
+                      boundsType: UixTextBounds.tight,
                     ),
                   ),
                 ],
@@ -300,13 +295,13 @@ class _CallSettingsPageState extends State<CallSettingsPage> {
     }
   }
 
-  Widget _caption(String label, Wp8PhonePalette palette) =>
-      UixTightText.fromText(
-        Text(
-          label,
-          style: TextStyle(fontSize: uixFontSize(15), color: palette.textMid),
-        ),
-      );
+  Widget _caption(String label, Wp8PhonePalette palette) => UixText.fromText(
+    Text(
+      label,
+      style: TextStyle(fontSize: uixFontSize(15), color: palette.textMid),
+    ),
+    boundsType: UixTextBounds.tight,
+  );
 }
 
 AssetImage _editBoxBackground(Wp8PhonePalette palette) => AssetImage(
@@ -351,7 +346,7 @@ class _ForwardNumberDialogState extends State<_ForwardNumberDialog> {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 24 * uixScale),
-              child: UixTightText.fromText(
+              child: UixText.fromText(
                 Text(
                   'Forward calls to',
                   style: TextStyle(
@@ -359,6 +354,7 @@ class _ForwardNumberDialogState extends State<_ForwardNumberDialog> {
                     color: palette.textMid,
                   ),
                 ),
+                boundsType: UixTextBounds.tight,
               ),
             ),
             UixEditBox(
